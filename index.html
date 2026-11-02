@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="hi">
 <head>
 <meta charset="utf-8">
@@ -32,7 +32,8 @@ input,select{width:100%;min-height:56px;font:inherit;padding:10px 14px;border:2p
 .free{background:var(--ok)}.busy{background:var(--bad)}
 .tag{display:inline-block;padding:2px 12px;border-radius:12px;font-weight:600;font-size:16px;color:#fff}
 .w{display:flex;gap:12px;align-items:center}
-.av{flex:none;width:56px;height:56px;border-radius:50%;background:var(--pri);color:var(--onpri);display:grid;place-items:center;font-size:28px}
+.av{flex:none;width:56px;height:56px;border-radius:50%;background:var(--pri);color:var(--onpri);display:grid;place-items:center;font-size:28px;overflow:hidden}
+.av img{width:100%;height:100%;object-fit:cover}
 .call{display:flex;gap:10px;margin-top:10px}
 .call a{flex:1;min-height:56px;border-radius:12px;display:grid;place-items:center;text-decoration:none;font-weight:800;color:#fff;background:var(--ok)}
 .call a.wa{background:#1B6F5C}
@@ -40,6 +41,10 @@ input,select{width:100%;min-height:56px;font:inherit;padding:10px 14px;border:2p
 .nav button{flex:1;min-height:60px;border:0;border-radius:12px;background:transparent;color:var(--ondark);font-weight:600;font-size:16px}
 .nav button.on{background:var(--pri);color:var(--onpri)}
 .err{color:var(--bad);font-weight:600}
+.search-box { position: relative; }
+.search-results { position: absolute; top: 100%; left: 0; right: 0; background: var(--card); border: 2px solid var(--line); border-radius: 12px; max-height: 200px; overflow-y: auto; z-index: 100; display: none; margin-top: 4px;}
+.search-results div { padding: 12px; border-bottom: 1px solid var(--line); cursor: pointer; }
+.search-results div:hover { background: var(--bg); color: var(--dark); }
 </style>
 </head>
 <body>
@@ -48,37 +53,101 @@ input,select{width:100%;min-height:56px;font:inherit;padding:10px 14px;border:2p
 import{initializeApp}from"https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
 import{getAuth,RecaptchaVerifier,signInWithPhoneNumber,onAuthStateChanged,signOut}from"https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import{getFirestore,doc,getDoc,setDoc,updateDoc,collection,query,where,getDocs,serverTimestamp}from"https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+import{getStorage,ref,uploadBytes,getDownloadURL}from"https://www.gstatic.com/firebasejs/10.14.1/firebase-storage.js";
+
 const app=initializeApp({apiKey:"AIzaSyBsKNi2VzmMO-paZfSuIAoiQXdvLPTQQAQ",authDomain:"nirman-setu-71b9a.firebaseapp.com",projectId:"nirman-setu-71b9a",storageBucket:"nirman-setu-71b9a.firebasestorage.app",messagingSenderId:"838865348565",appId:"1:838865348565:web:ea54c8137be97c023d3f5c"});
-const auth=getAuth(app),db=getFirestore(app);auth.languageCode="hi";
-const AREAS=["जम्मू शहर","गांधी नगर","बिश्नाह","आरएस पुरा","अखनूर","नगरोटा","सांबा","विजयपुर","कठुआ","उधमपुर","रियासी","कटरा"];
+const auth=getAuth(app),db=getFirestore(app),storage=getStorage(app);
+auth.languageCode="hi";
+
+const DISTRICTS = ["जम्मू", "सांबा", "कठुआ", "उधमपुर", "रियासी", "राजौरी", "पुंछ", "डोडा", "किश्तवाड़", "रामबन"];
+
+// जम्मू के असली ब्लॉक्स (Ghou Manhasan yahan se hata diya hai)
+const BLOCKS = {
+  "जम्मू": ["जम्मू शहर", "गांधी नगर", "बिश्नाह", "आरएस पुरा", "मीरां साहिब", "अखनूर", "नगरोटा", "मार्ह", "सतवारी", "डांसल", "खौर", "परगवाल", "चौकी चौरा", "सुचेतगढ़"],
+  "सांबा": ["सांबा", "विजयपुर", "घगवाल", "रामगढ़", "पुरमंडल"],
+  "कठुआ": ["कठुआ", "बिलावर", "हीरानगर", "बसोहली", "माहनपुर"],
+  "उधमपुर": ["उधमपुर", "चिनैनी", "रामनगर", "मजालता", "पंचरी"]
+};
+
+// गाँव / मोहल्ला की लिस्ट (Ghou Manhasan ab sirf Marh ke andar hai)
+const VILLAGES = {
+  "जम्मू शहर": ["तालाब तिल्लो", "बोहड़ी", "गांधी नगर", "चन्नी हिम्मत", "जानीपुर", "पलोरा", "दिग्याना", "नरवाल", "भागवती नगर", "त्रिकुटा नगर", "सरवाल", "बक्शी नगर", "चौड़ी गली"],
+  "गांधी नगर": ["गांधी नगर", "शास्त्री नगर", "ग्रीन बेल्ट", "चन्नी हिम्मत"],
+  "बिश्नाह": ["बिश्नाह", "कुंजवानी", "दोमाना", "मीरां साहिब", "रंगपुर"],
+  "आरएस पुरा": ["आरएस पुरा", "बड़ी ब्राह्मणा", "अरनिया", "राठाना", "सिम्बल", "किरपालपुर"],
+  "मीरां साहिब": ["मीरां साहिब", "सिम्बल", "बड़ी ब्राह्मणा", "रंगपुर"],
+  "अखनूर": ["अखनूर", "ज्योतियां", "खौर", "पल्लनवाला", "गुरहा मुड़ियां"],
+  "नगरोटा": ["नगरोटा", "डांसल", "झज्जर कोटली", "टिकरी"],
+  "मार्ह": ["मार्ह", "घो मन्हासां", "परगवाल", "सैंसर", "रख बाहू", "चक भगवान", "ट्रेगड़"],
+  "सतवारी": ["सतवारी", "पल्लनवाला", "छन्नी"],
+  "डांसल": ["डांसल", "नगरोटा"],
+  "खौर": ["खौर", "अखनूर"],
+  "परगवाल": ["परगवाल", "मार्ह"],
+  "चौकी चौरा": ["चौकी चौरा", "चक भगवान"],
+  "सुचेतगढ़": ["सुचेतगढ़", "मीरां साहिब"],
+  "सांबा": ["सांबा शहर", "विजयपुर", "बीरपुर", "राजपुरा", "घगवाल"],
+  "कठुआ": ["कठुआ शहर", "बिलावर", "हीरानगर", "परोल", "बसोहली"]
+};
+
 const TR=[["owner","🏠","मकान मालिक"],["thekedar","📋","ठेकेदार"],["mistri","🧱","राज मिस्त्री"],["elec","💡","इलेक्ट्रीशियन"],["plumb","🚿","प्लंबर"],["paint","🎨","पेंटर"],["tile","🔲","टाइल मिस्त्री"],["carp","🪚","कारपेंटर"],["lab","⛏️","मजदूर"],["other","➕","और काम"]];
 const T=Object.fromEntries(TR.map(r=>[r[0],r]));
-let S={step:"welcome",pos:null,phone:"",role:"",err:"",f:{w:[]},q:{t:"all",km:10},tab:"search",uid:null,user:null,list:null,busy:false};
+
+let S={step:"welcome",pos:null,phone:"",role:"",err:"",f:{w:[],dist:"जम्मू",blk:"जम्मू शहर",vill:"तालाब तिल्लो"},q:{t:"all",km:10},tab:"search",uid:null,user:null,list:null,busy:false};
+
 const $=id=>document.getElementById(id);
 const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const inJK=(a,b)=>a>=32.25&&a<=33.15&&b>=74.45&&b<=75.75;
 const km=(a,b,c,d)=>{const R=6371,r=x=>x*Math.PI/180,h=Math.sin(r(c-a)/2)**2+Math.cos(r(a))*Math.cos(r(c))*Math.sin(r(d-b)/2)**2;return 2*R*Math.asin(Math.sqrt(h))};
 const go=s=>{S.step=s;S.err="";draw()};
 const head=(t,s)=>`<div class="top"><h1>${t}</h1><p>${s||""}</p></div>`;
+
 onAuthStateChanged(auth,u=>{S.uid=u?u.uid:null});
+
 async function loadProfile(){
-try{const sn=await getDoc(doc(db,"users",S.uid));
-if(sn.exists()){S.user=sn.data();S.tab=S.user.role==="owner"?"search":"me";try{await updateDoc(doc(db,"users",S.uid),{la:S.pos.la,lo:S.pos.lo})}catch(e){}go("home")}else go("role")}
-catch(e){S.err="डेटा नहीं मिला। इंटरनेट देखें और दोबारा कोशिश करें।";go("welcome")}}
+  try{
+    const sn=await getDoc(doc(db,"users",S.uid));
+    if(sn.exists()){
+      S.user=sn.data();
+      S.tab=S.user.role==="owner"?"search":"me";
+      try{await updateDoc(doc(db,"users",S.uid),{la:S.pos.la,lo:S.pos.lo})}catch(e){}
+      go("home")
+    } else go("role")
+  } catch(e){ S.err="डेटा नहीं मिला। इंटरनेट देखें।"; go("welcome") }
+}
+
 async function loadList(){
-try{const q=await getDocs(query(collection(db,"users"),where("free","==",true)));
-S.list=q.docs.filter(d=>d.id!==S.uid).map(d=>d.data()).filter(w=>w.role!=="owner"&&w.la!=null)}catch(e){S.list=[];S.err="सूची नहीं आ सकी।"}draw()}
+  try{
+    const q=await getDocs(query(collection(db,"users"),where("free","==",true)));
+    S.list=q.docs.filter(d=>d.id!==S.uid).map(d=>d.data()).filter(w=>w.role!=="owner"&&w.la!=null)
+  } catch(e){ S.list=[]; S.err="सूची नहीं आ सकी।"; }
+  draw()
+}
+
+async function uploadPhoto(file){
+  if(!file)return;
+  S.busy=true;S.err="फोटो अपलोड हो रही है...";draw();
+  try{
+    const storageRef=ref(storage,'users/'+S.uid+'/profile.jpg');
+    await uploadBytes(storageRef,file);
+    const url=await getDownloadURL(storageRef);
+    await updateDoc(doc(db,"users",S.uid),{photoURL:url});
+    S.user.photoURL=url;
+    S.busy=false;S.err="";draw();
+  }catch(e){ S.busy=false;S.err="फोटो अपलोड नहीं हुई।";draw(); }
+}
+
 function draw(){
-const A=$("app");let h="";
+const A=$("app");
 if(S.step==="welcome"){A.innerHTML=head("निर्माण सेतु","मजदूर, कारीगर और मकान मालिक को सीधा जोड़ने वाला ऐप")+
-`<div class="card"><p><b>पहले अपनी लोकेशन चालू करें।</b></p><p class="mut">यह ऐप अभी सिर्फ़ जम्मू क्षेत्र (कठुआ से कटरा) के लिए है।</p></div>
+`<div class="card"><p><b>पहले अपनी लोकेशन चालू करें।</b></p><p class="mut">यह ऐप अभी सिर्फ़ जम्मू क्षेत्र के लिए है।</p></div>
 <button class="btn" id="gps">📍 लोकेशन की इजाज़त दें</button><p class="err">${esc(S.err)}</p>`;
 $("gps").onclick=()=>{S.err="लोकेशन ढूँढ रहे हैं…";draw();
 if(!navigator.geolocation){S.err="इस फ़ोन में लोकेशन नहीं चल रही।";return draw()}
 navigator.geolocation.getCurrentPosition(p=>{S.pos={la:p.coords.latitude,lo:p.coords.longitude};
-if(!inJK(S.pos.la,S.pos.lo)){S.err="यह ऐप अभी सिर्फ़ जम्मू क्षेत्र (कठुआ से कटरा) के लिए है।";return draw()}
+if(!inJK(S.pos.la,S.pos.lo)){S.err="यह ऐप अभी सिर्फ़ जम्मू क्षेत्र के लिए है।";return draw()}
 if(S.uid)loadProfile();else go("phone")},
-()=>{S.err="लोकेशन के बिना ऐप नहीं चल सकता। फ़ोन की सेटिंग में लोकेशन की इजाज़त दें।";draw()},{enableHighAccuracy:true,timeout:15000})};return}
+()=>{S.err="लोकेशन के बिना ऐप नहीं चल सकता।";draw()},{enableHighAccuracy:true,timeout:15000})};return}
+
 if(S.step==="phone"){A.innerHTML=head("मोबाइल नंबर","OTP SMS से आएगा")+
 `<label for="ph">आपका मोबाइल नंबर</label><input id="ph" inputmode="numeric" maxlength="10" placeholder="10 अंक" value="${esc(S.phone)}">
 <p class="err">${esc(S.err)}</p><button class="btn" id="nx" ${S.busy?"disabled":""}>${S.busy?"भेज रहे हैं…":"OTP भेजें"}</button>`;
@@ -86,7 +155,8 @@ $("nx").onclick=async()=>{const v=$("ph").value.replace(/\D/g,"");S.phone=v;if(v
 S.busy=true;S.err="";draw();
 try{if(!window.rv)window.rv=new RecaptchaVerifier(auth,"rc",{size:"invisible"});
 S.conf=await signInWithPhoneNumber(auth,"+91"+v,window.rv);S.busy=false;go("otp")}
-catch(e){S.busy=false;try{window.rv.clear()}catch(x){}window.rv=null;S.err=e.code==="auth/too-many-requests"?"आज के SMS की सीमा पूरी हो गई। बाद में कोशिश करें।":"OTP नहीं भेज सके ("+esc(e.code||"error")+")";draw()}};return}
+catch(e){S.busy=false;try{window.rv.clear()}catch(x){}window.rv=null;S.err="OTP नहीं भेज सके।";draw()}};return}
+
 if(S.step==="otp"){A.innerHTML=head("OTP डालें","नंबर: "+esc(S.phone))+
 `<label for="ot">6 अंक का OTP</label><input id="ot" inputmode="numeric" maxlength="6"><p class="err">${esc(S.err)}</p>
 <button class="btn" id="nx" ${S.busy?"disabled":""}>आगे बढ़ें</button><button class="btn alt" id="bk">नंबर बदलें</button>`;
@@ -95,49 +165,153 @@ S.busy=true;draw();
 try{const r=await S.conf.confirm(c);S.uid=r.user.uid;S.busy=false;loadProfile()}
 catch(e){S.busy=false;S.err="OTP सही नहीं है।";draw()}};
 $("bk").onclick=()=>go("phone");return}
+
 if(S.step==="role"){A.innerHTML=head("आप कौन हैं?","एक चुनें")+`<div class="grid">${TR.map(r=>`<button class="role" data-r="${r[0]}"><b>${r[1]}</b>${r[2]}</button>`).join("")}</div>`;
-A.querySelectorAll(".role").forEach(b=>b.onclick=()=>{S.role=b.dataset.r;S.f={w:[]};go("form")});return}
-if(S.step==="form"){const o=S.role==="owner",f=S.f;
-A.innerHTML=head(T[S.role][1]+" "+T[S.role][2],"अपनी जानकारी भरें")+
-`<label for="nm">नाम</label><input id="nm" maxlength="60" value="${esc(f.n)}">
-${o?"":`<label for="ye">अनुभव (कितने साल)</label><input id="ye" inputmode="numeric" maxlength="2" value="${esc(f.y)}">
-<label for="rt">आपका रेट</label><input id="rt" maxlength="60" placeholder="जैसे: ₹800 / दिन" value="${esc(f.r)}">`}
-<label for="ar">आप कहाँ रहते हैं?</label><select id="ar">${AREAS.map(a=>`<option ${f.a===a?"selected":""}>${a}</option>`).join("")}</select>
-${o?"":`<label>कहाँ काम करते हैं? (एक से ज़्यादा)</label><div class="row">${AREAS.map(a=>`<button type="button" class="chip ${f.w.includes(a)?"on":""}" data-a="${a}">${a}</button>`).join("")}</div>`}
-<p class="err">${esc(S.err)}</p><button class="btn" id="sv" ${S.busy?"disabled":""}>प्रोफ़ाइल बनाएँ</button>`;
-const rd=()=>{f.n=$("nm").value.trim();f.a=$("ar").value;if(!o){f.y=$("ye").value;f.r=$("rt").value.trim()}};
-A.querySelectorAll(".chip").forEach(b=>b.onclick=()=>{rd();const a=b.dataset.a;f.w=f.w.includes(a)?f.w.filter(x=>x!==a):f.w.concat(a);draw()});
-$("sv").onclick=async()=>{rd();if(!f.n){S.err="अपना नाम लिखें।";return draw()}
-if(!o&&(!f.y||!f.r)){S.err="अनुभव और रेट भरें।";return draw()}
-const d={role:S.role,name:f.n,years:o?"":String(f.y),rate:o?"":f.r,area:f.a,work:o?[]:f.w,free:true,phone:S.phone,la:S.pos.la,lo:S.pos.lo,created:serverTimestamp()};
-S.busy=true;draw();
-try{await setDoc(doc(db,"users",S.uid),d);S.user=d;S.busy=false;S.tab=o?"search":"me";go("home")}
-catch(e){S.busy=false;S.err="प्रोफ़ाइल सेव नहीं हुई। दोबारा कोशिश करें।";draw()}};return}
-if(S.step==="home"){const u=S.user,o=u.role==="owner";
-const nav=`<div class="nav"><button data-t="search" class="${S.tab==="search"?"on":""}">🔍 कारीगर खोजें</button><button data-t="me" class="${S.tab==="me"?"on":""}">👤 मेरी प्रोफ़ाइल</button></div>`;
-if(S.tab==="me"){A.innerHTML=head("मेरी प्रोफ़ाइल",T[u.role][1]+" "+T[u.role][2])+
-(o?"":`<p class="mut">खोज में सिर्फ़ खाली लोग दिखते हैं। काम मिल जाए तो व्यस्त कर दें।</p>
-<button class="status ${u.free?"free":"busy"}" id="st">${u.free?"🟢 मैं खाली हूँ":"🔴 मैं व्यस्त हूँ"}</button>`)+
-`<p class="err">${esc(S.err)}</p><div class="card"><div class="w"><div class="av">${T[u.role][1]}</div><div><b>${esc(u.name)}</b><br><span class="mut">${T[u.role][2]}${o?"":" · "+esc(u.years)+" साल अनुभव"}</span></div></div>
-${o?"":`<p>💰 ${esc(u.rate)}</p>`}<p>🏘️ रहते हैं: ${esc(u.area)}</p>${o||!u.work.length?"":`<p>🛠️ काम का इलाका: ${u.work.map(esc).join(", ")}</p>`}<p>📱 ${esc(u.phone)}</p></div>
-<button class="btn alt" id="lo">बाहर निकलें</button>`+nav;
-if(!o)$("st").onclick=async()=>{const n=!u.free;try{await updateDoc(doc(db,"users",S.uid),{free:n});u.free=n;S.err=""}catch(e){S.err="स्टेटस बदला नहीं। दोबारा कोशिश करें।"}draw()};
-$("lo").onclick=async()=>{await signOut(auth);S={step:"welcome",pos:null,phone:"",role:"",err:"",f:{w:[]},q:{t:"all",km:10},tab:"search",uid:null,user:null,list:null,busy:false};draw()}}
-else{if(S.list===null){S.list=[];loadList()}
-const q=S.q,p=S.pos;
-const L=(S.list||[]).map(w=>({...w,d:km(p.la,p.lo,w.la,w.lo)})).filter(w=>w.d<=q.km&&(q.t==="all"||w.role===q.t)).sort((a,b)=>a.d-b.d);
-A.innerHTML=head("कारीगर खोजें","पास के खाली लोग")+
-`<div class="row" style="margin-bottom:8px"><button class="chip ${q.t==="all"?"on":""}" data-t="all">सभी</button>${TR.filter(r=>r[0]!=="owner").map(r=>`<button class="chip ${q.t===r[0]?"on":""}" data-t="${r[0]}">${r[1]} ${r[2]}</button>`).join("")}</div>
-<div class="row"><button class="chip ${q.km===10?"on":""}" data-k="10">10 किमी के अंदर</button><button class="chip ${q.km===20?"on":""}" data-k="20">20 किमी के अंदर</button><button class="chip" id="rf">🔄 ताज़ा करें</button></div>
-<p class="err">${esc(S.err)}</p><p class="mut">${L.length} खाली लोग मिले।</p>`+
-(L.length?L.map(w=>`<div class="card"><div class="w"><div class="av">${T[w.role]?T[w.role][1]:"🛠️"}</div><div style="flex:1"><b>${esc(w.name)}</b> <span class="tag free">खाली</span><br><span class="mut">${T[w.role]?T[w.role][2]:""} · ${esc(w.years)} साल अनुभव</span></div></div>
-<p>💰 ${esc(w.rate)}<br>📍 ${esc(w.area)} · ${w.d.toFixed(1)} किमी दूर</p>
-<div class="call"><a href="tel:+91${esc(w.phone)}">📞 फ़ोन करें</a><a class="wa" href="https://wa.me/91${esc(w.phone)}">WhatsApp</a></div></div>`).join(""):
-`<div class="card"><p><b>इस दायरे में कोई खाली कारीगर नहीं मिला।</b></p><p class="mut">20 किमी चुनें या दूसरा काम चुनें।</p></div>`)+nav;
-A.querySelectorAll("[data-t].chip").forEach(b=>b.onclick=()=>{q.t=b.dataset.t;draw()});
-A.querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>{q.km=+b.dataset.k;draw()});
-$("rf").onclick=()=>{S.err="";loadList()}}
-A.querySelectorAll(".nav button").forEach(b=>b.onclick=()=>{S.tab=b.dataset.t;if(S.tab==="search")S.list=null;draw();scrollTo(0,0)})}
+A.querySelectorAll(".role").forEach(b=>b.onclick=()=>{S.role=b.dataset.r;S.f={w:[],dist:"जम्मू",blk:"जम्मू शहर",vill:"तालाब तिल्लो"};go("form")});return}
+
+if(S.step==="form"){
+  const o=S.role==="owner",f=S.f;
+  const blocks = BLOCKS[f.dist] || ["अन्य"];
+  
+  A.innerHTML=head(T[S.role][1]+" "+T[S.role][2],"अपनी जानकारी भरें")+
+  `<label for="nm">नाम</label><input id="nm" maxlength="60" value="${esc(f.n)}">
+  ${o?"":`<label for="ye">अनुभव (कितने साल)</label><input id="ye" inputmode="numeric" maxlength="2" value="${esc(f.y)}">
+  <label for="rt">आपका रेट</label><input id="rt" maxlength="60" placeholder="जैसे: ₹800 / दिन" value="${esc(f.r)}">`}
+  
+  <label for="dist">जिला (District)</label>
+  <select id="dist">${DISTRICTS.map(d=>`<option ${f.dist===d?"selected":""}>${d}</option>`).join("")}</select>
+  
+  <label for="blk">ब्लॉक / तहसील (Block)</label>
+  <select id="blk">${blocks.map(b=>`<option ${f.blk===b?"selected":""}>${b}</option>`).join("")}</select>
+  
+  <label for="villSearch">मूल स्थान / गाँव (Search करें)</label>
+  <div class="search-box">
+    <input type="text" id="villSearch" placeholder="गाँव/मोहल्ला का नाम लिखें..." value="${esc(f.vill||'')}" autocomplete="off">
+    <input type="hidden" id="villSelected" value="${esc(f.vill||'')}">
+    <div class="search-results" id="villResults"></div>
+  </div>
+
+  ${o?"":`<label>कहाँ काम करते हैं? (एक से ज़्यादा)</label><div class="row">${DISTRICTS.map(a=>`<button type="button" class="chip ${f.w.includes(a)?"on":""}" data-a="${a}">${a}</button>`).join("")}</div>`}
+  
+  <p class="err">${esc(S.err)}</p><button class="btn" id="sv" ${S.busy?"disabled":""}>प्रोफ़ाइल बनाएँ</button>`;
+  
+  const rd=()=>{
+    f.n=$("nm").value.trim();
+    f.dist=$("dist").value; f.blk=$("blk").value; f.vill=$("villSelected").value;
+    if(!o){f.y=$("ye").value; f.r=$("rt").value.trim();}
+  };
+
+  $("dist").onchange=()=>{ rd(); f.blk=(BLOCKS[f.dist]||["अन्य"])[0]; f.vill=""; draw(); };
+  $("blk").onchange=()=>{ rd(); f.vill=""; draw(); };
+
+  const villSearch = $("villSearch");
+  const villResults = $("villResults");
+  const villSelected = $("villSelected");
+
+  villSearch.addEventListener("input", (e) => {
+      const query = e.target.value.toLowerCase();
+      villSelected.value = ""; 
+      
+      if(query.length < 1) { villResults.style.display = "none"; return; }
+
+      const currentVillages = VILLAGES[$("blk").value] || [];
+      const filtered = currentVillages.filter(v => v.toLowerCase().includes(query));
+
+      if(filtered.length > 0) {
+          villResults.innerHTML = filtered.map(v => `<div data-v="${v}">${v}</div>`).join('');
+          villResults.style.display = "block";
+      } else {
+          villResults.innerHTML = `<div style="color:var(--mut)">कोई गाँव नहीं मिला (अपने हिसाब से लिखें)</div>`;
+          villResults.style.display = "block";
+      }
+  });
+
+  villResults.addEventListener("click", (e) => {
+      if(e.target.tagName === "DIV" && e.target.dataset.v) {
+          villSearch.value = e.target.dataset.v;
+          villSelected.value = e.target.dataset.v;
+          villResults.style.display = "none";
+      }
+  });
+
+  document.addEventListener('click', function(event) {
+      if (!villSearch.contains(event.target) && !villResults.contains(event.target)) {
+          villResults.style.display = "none";
+      }
+  });
+
+  A.querySelectorAll(".chip").forEach(b=>b.onclick=()=>{rd();const a=b.dataset.a;f.w=f.w.includes(a)?f.w.filter(x=>x!==a):f.w.concat(a);draw()});
+  
+  $("sv").onclick=async()=>{
+    rd(); 
+    if(!f.vill) f.vill = $("villSearch").value.trim(); 
+
+    if(!f.n){S.err="अपना नाम लिखें।";return draw()}
+    if(!f.vill){S.err="अपना गाँव/एरिया लिखें।";return draw()}
+    if(!o&&(!f.y||!f.r)){S.err="अनुभव और रेट भरें।";return draw()}
+    
+    const fullArea = `${f.vill}, ${f.blk}, ${f.dist}`;
+    const d={role:S.role,name:f.n,years:o?"":String(f.y),rate:o?"":f.r,area:fullArea,work:o?[]:f.w,free:true,phone:S.phone,la:S.pos.la,lo:S.pos.lo,created:serverTimestamp()};
+    S.busy=true;draw();
+    try{await setDoc(doc(db,"users",S.uid),d);S.user=d;S.busy=false;S.tab=o?"search":"me";go("home")}
+    catch(e){S.busy=false;S.err="प्रोफ़ाइल सेव नहीं हुई।";draw()}
+  };return;
+}
+
+if(S.step==="home"){
+  const u=S.user,o=u.role==="owner";
+  const nav=`<div class="nav"><button data-t="search" class="${S.tab==="search"?"on":""}">🔍 कारीगर खोजें</button><button data-t="me" class="${S.tab==="me"?"on":""}">👤 मेरी प्रोफ़ाइल</button></div>`;
+  
+  if(S.tab==="me"){
+    A.innerHTML=head("मेरी प्रोफ़ाइल",T[u.role][1]+" "+T[u.role][2])+
+    (o?"":`<p class="mut">खोज में सिर्फ़ खाली लोग दिखते हैं।</p>
+    <button class="status ${u.free?"free":"busy"}" id="st">${u.free?"🟢 मैं खाली हूँ":"🔴 मैं व्यस्त हूँ"}</button>`)+
+    `<p class="err">${esc(S.err)}</p>
+    <div class="card">
+      <div class="w" style="margin-bottom:12px">
+        <label for="photoUpload" class="av" style="cursor:pointer" title="फोटो बदलें">
+          ${u.photoURL ? `<img src="${u.photoURL}">` : T[u.role][1]}
+        </label>
+        <input type="file" id="photoUpload" accept="image/*" style="display:none">
+        <div>
+          <b>${esc(u.name)}</b><br>
+          <span class="mut">${T[u.role][2]}${o?"":" · "+esc(u.years)+" साल अनुभव"}</span><br>
+          <span style="font-size:14px;color:var(--pri);font-weight:bold;cursor:pointer" onclick="document.getElementById('photoUpload').click()">📷 फोटो बदलें</span>
+        </div>
+      </div>
+      ${o?"":`<p>💰 ${esc(u.rate)}</p>`}
+      <p>📍 पता: ${esc(u.area)}</p>
+      ${o||!u.work.length?"":`<p>🛠️ काम का इलाका: ${u.work.map(esc).join(", ")}</p>`}
+      <p>📱 ${esc(u.phone)}</p>
+    </div>
+    <button class="btn alt" id="lo">बाहर निकलें</button>`+nav;
+
+    $("photoUpload").onchange=(e)=>uploadPhoto(e.target.files[0]);
+    if(!o)$("st").onclick=async()=>{const n=!u.free;try{await updateDoc(doc(db,"users",S.uid),{free:n});u.free=n;S.err=""}catch(e){S.err="स्टेटस बदला नहीं।"}draw()};
+    $("lo").onclick=async()=>{await signOut(auth);S={step:"welcome",pos:null,phone:"",role:"",err:"",f:{w:[],dist:"जम्मू",blk:"जम्मू शहर",vill:"तालाब तिल्लो"},q:{t:"all",km:10},tab:"search",uid:null,user:null,list:null,busy:false};draw()}
+  }
+  else {
+    if(S.list===null){S.list=[];loadList()}
+    const q=S.q,p=S.pos;
+    const L=(S.list||[]).map(w=>({...w,d:km(p.la,p.lo,w.la,w.lo)})).filter(w=>w.d<=q.km&&(q.t==="all"||w.role===q.t)).sort((a,b)=>a.d-b.d);
+    
+    A.innerHTML=head("कारीगर खोजें","पास के खाली लोग")+
+    `<div class="row" style="margin-bottom:8px"><button class="chip ${q.t==="all"?"on":""}" data-t="all">सभी</button>${TR.filter(r=>r[0]!=="owner").map(r=>`<button class="chip ${q.t===r[0]?"on":""}" data-t="${r[0]}">${r[1]} ${r[2]}</button>`).join("")}</div>
+    <div class="row"><button class="chip ${q.km===10?"on":""}" data-k="10">10 किमी के अंदर</button><button class="chip ${q.km===20?"on":""}" data-k="20">20 किमी के अंदर</button><button class="chip" id="rf">🔄 ताज़ा करें</button></div>
+    <p class="err">${esc(S.err)}</p><p class="mut">${L.length} खाली लोग मिले।</p>`+
+    (L.length?L.map(w=>`<div class="card"><div class="w">
+      <div class="av">${w.photoURL ? `<img src="${w.photoURL}">` : (T[w.role]?T[w.role][1]:"🛠️")}</div>
+      <div style="flex:1"><b>${esc(w.name)}</b> <span class="tag free">खाली</span><br><span class="mut">${T[w.role]?T[w.role][2]:""} · ${esc(w.years)} साल अनुभव</span></div></div>
+    <p>💰 ${esc(w.rate)}<br>📍 ${esc(w.area)} · ${w.d.toFixed(1)} किमी दूर</p>
+    <div class="call"><a href="tel:+91${esc(w.phone)}">📞 फ़ोन करें</a><a class="wa" href="https://wa.me/91${esc(w.phone)}">WhatsApp</a></div></div>`).join(""):
+    `<div class="card"><p><b>इस दायरे में कोई खाली कारीगर नहीं मिला।</b></p><p class="mut">20 किमी चुनें या दूसरा काम चुनें।</p></div>`)+nav;
+    
+    A.querySelectorAll("[data-t].chip").forEach(b=>b.onclick=()=>{q.t=b.dataset.t;draw()});
+    A.querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>{q.km=+b.dataset.k;draw()});
+    $("rf").onclick=()=>{S.err="";loadList()}
+  }
+  A.querySelectorAll(".nav button").forEach(b=>b.onclick=()=>{S.tab=b.dataset.t;if(S.tab==="search")S.list=null;draw();scrollTo(0,0)})
+}
 }
 draw();
 </script>
