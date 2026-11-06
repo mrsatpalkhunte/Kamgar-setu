@@ -41,8 +41,9 @@ textarea{min-height:90px;resize:vertical}
 .worker-card .role{font-size:13px;color:var(--mut)}
 .worker-card .details{font-size:14px;color:var(--mut);margin-bottom:12px;line-height:1.6}
 .worker-card .actions{display:flex;gap:8px}
-.worker-card .actions a{flex:1;text-align:center;padding:10px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;gap:6px}
+.worker-card .actions a, .worker-card .actions span{flex:1;text-align:center;padding:10px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;gap:6px}
 .call-btn{background:#E0F2FE;color:#0284C7}.wa-btn{background:#DCFCE7;color:#16A34A}
+.no-phone{background:var(--bg);color:var(--mut);font-size:12px;}
 .nav{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);display:flex;padding:8px 8px calc(8px + env(safe-area-inset-bottom,0px));z-index:100}
 .nav button{flex:1;min-height:50px;border:0;background:transparent;color:var(--mut);font-weight:600;font-size:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
 .nav button.on{color:var(--pri)}.nav button span{font-size:20px}
@@ -67,7 +68,7 @@ auth.languageCode="hi";
 
 const CLOUD_NAME = "a8lpfd0d"; 
 const UPLOAD_PRESET = "Satpal_khunte"; 
-const DEFAULT_LOC = {la: 32.7266, lo: 74.8570}; // Jammu Default
+const DEFAULT_LOC = {la: 32.7266, lo: 74.8570}; 
 
 const DISTRICTS = ["जम्मू", "सांबा", "कठुआ", "उधमपुर", "रियासी", "राजौरी", "पुंछ", "डोडा", "किश्तवाड़", "रामबन"];
 const BLOCKS = {"जम्मू": ["जम्मू शहर", "गांधी नगर", "बिश्नाह", "आरएस पुरा", "मीरां साहिब", "अखनूर", "नगरोटा", "मार्ह", "सतवारी", "डांसल", "खौर", "परगवाल", "चौकी चौरा", "सुचेतगढ़"],"सांबा": ["सांबा", "विजयपुर", "घगवाल", "रामगढ़", "पुरमंडल"],"कठुआ": ["कठुआ", "बिलावर", "हीरानगर", "बसोहली", "माहनपुर"],"उधमपुर": ["उधमपुर", "चिनैनी", "रामनगर", "मजालता", "पंचरी"]};
@@ -83,7 +84,13 @@ const inJK=(a,b)=>a>=32.25&&a<=33.15&&b>=74.45&&b<=75.75;
 const km=(a,b,c,d)=>{const R=6371,r=x=>x*Math.PI/180,h=Math.sin(r(c-a)/2)**2+Math.cos(r(a))*Math.cos(r(c))*Math.sin(r(d-b)/2)**2;return 2*R*Math.asin(Math.sqrt(h))};
 const go=s=>{S.step=s;S.err="";draw()};
 
-onAuthStateChanged(auth,u=>{S.uid=u?u.uid:null});
+// Magic Fix 1: Firebase Auth se number uthana (Hamesha yaad rahega)
+onAuthStateChanged(auth,u=>{
+    S.uid=u?u.uid:null;
+    if(u && u.phoneNumber){
+        S.phone = u.phoneNumber.replace("+91", ""); 
+    }
+});
 
 function checkSavedLocation(){
   const savedLoc = localStorage.getItem('ns_location');
@@ -103,10 +110,16 @@ async function loadProfile(){
     const sn=await getDoc(doc(db,"users",S.uid));
     if(sn.exists()){
       S.user=sn.data();
+      
+      // Magic Fix 2: Agar Database mein number khali hai, toh Auth se leke DB mein save karo
+      if(!S.user.phone && S.phone){
+          S.user.phone = S.phone;
+          await updateDoc(doc(db,"users",S.uid), {phone: S.phone}).catch(e=>{});
+      }
+      
       if(S.user.phone) S.phone = S.user.phone;
       S.tab=S.user.role==="owner"?"search":"me";
       
-      // Update DB location quietly
       try{await updateDoc(doc(db,"users",S.uid),{la:S.pos.la,lo:S.pos.lo})}catch(e){}
       go("home")
     } else go("role")
@@ -286,8 +299,8 @@ if(S.step==="form"){
     
     const fullArea = `${f.vill}, ${f.blk}, ${f.dist}`;
     
-    // Absolute Phone fix
-    const userPhone = (S.user && S.user.phone) ? S.user.phone : (S.phone || "");
+    // Magic Fix 3: Save karte waqt Auth ka number use karo
+    const userPhone = (S.user && S.user.phone) ? S.user.phone : S.phone;
     
     const d={role:S.role,name:f.n,years:o?"":String(f.y),rate:o?"":f.r,area:fullArea,bio:f.bio,work:o?[]:f.w,free:S.user?S.user.free:true,phone:userPhone,la:S.pos.la,lo:S.pos.lo};
     
@@ -375,9 +388,8 @@ if(S.step==="home"){
   else {
     if(S.list===null){S.list=[];loadList()}
     const q=S.q;
-    const p = S.pos || DEFAULT_LOC; // Fallback to default loc if null
+    const p = S.pos || DEFAULT_LOC; 
     
-    // Logic: Workers with unknown location should not vanish. Show them at bottom.
     const L=(S.list||[]).map(w=>{
         let dist = 9999;
         if(w.la && w.lo) dist = km(p.la,p.lo,w.la,w.lo);
@@ -389,8 +401,8 @@ if(S.step==="home"){
     }).sort((a,b)=>{
         const aTop = parseInt(a.years) >= 5 ? 1 : 0;
         const bTop = parseInt(b.years) >= 5 ? 1 : 0;
-        if(aTop !== bTop) return bTop - aTop; // Top rated pehle
-        if(a.d === 9999 && b.d !== 9999) return 1; // Unknown distance sabse neeche
+        if(aTop !== bTop) return bTop - aTop; 
+        if(a.d === 9999 && b.d !== 9999) return 1; 
         if(b.d === 9999 && a.d !== 9999) return -1;
         return a.d - b.d; 
     });
@@ -416,6 +428,12 @@ if(S.step==="home"){
       const isTop = parseInt(w.years) >= 5;
       const distText = w.d === 9999 ? "दूरी अज्ञात" : `${w.d.toFixed(1)} किमी दूर`;
       
+      // Magic Fix: Agar number missing hai toh button disable kar do
+      const actionsHTML = w.phone ? 
+        `<a href="tel:+91${esc(w.phone)}" class="call-btn">📞 कॉल करें</a>
+         <a href="https://wa.me/91${esc(w.phone)}" class="wa-btn">WhatsApp</a>` :
+        `<span class="no-phone">नंबर उपलब्ध नहीं है</span>`;
+
       return `<div class="worker-card">
         <div class="header">
           <div class="av">${w.photoURL ? `<img src="${w.photoURL}">` : (T[w.role]?T[w.role][1]:"🛠️")}</div>
@@ -433,8 +451,7 @@ if(S.step==="home"){
           <div>📍 ${esc(w.area)} (${distText})</div>
         </div>
         <div class="actions">
-          <a href="tel:+91${esc(w.phone)}" class="call-btn">📞 कॉल करें</a>
-          <a href="https://wa.me/91${esc(w.phone)}" class="wa-btn">WhatsApp</a>
+          ${actionsHTML}
         </div>
       </div>`
     }).join(""):`<div style="text-align:center;padding:40px 20px;color:var(--mut);">इस दायरे में कोई खाली कारीगर नहीं मिला। कृपया दूरी बढ़ाएं।</div>`)+nav;
