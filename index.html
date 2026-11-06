@@ -53,6 +53,7 @@ textarea{min-height:90px;resize:vertical}
 .chip{white-space:nowrap;padding:8px 16px;border-radius:20px;border:1px solid var(--line);background:var(--card);color:var(--ink);font-weight:600;font-size:14px;cursor:pointer}
 .chip.on{background:var(--dark);color:var(--ondark);border-color:var(--dark)}
 .loc-warning{background:#FEF3C7;color:#92400E;padding:10px 16px;font-size:13px;text-align:center;font-weight:600;border-bottom:1px solid #FDE68A}
+.role-badge {display:inline-block; background:var(--bg); color:var(--ink); padding:2px 8px; border-radius:4px; font-size:12px; font-weight:700; margin-left:4px;}
 </style>
 </head>
 <body>
@@ -72,11 +73,11 @@ const DEFAULT_LOC = {la: 32.7266, lo: 74.8570};
 
 const DISTRICTS = ["जम्मू", "सांबा", "कठुआ", "उधमपुर", "रियासी", "राजौरी", "पुंछ", "डोडा", "किश्तवाड़", "रामबन"];
 const BLOCKS = {"जम्मू": ["जम्मू शहर", "गांधी नगर", "बिश्नाह", "आरएस पुरा", "मीरां साहिब", "अखनूर", "नगरोटा", "मार्ह", "सतवारी", "डांसल", "खौर", "परगवाल", "चौकी चौरा", "सुचेतगढ़"],"सांबा": ["सांबा", "विजयपुर", "घगवाल", "रामगढ़", "पुरमंडल"],"कठुआ": ["कठुआ", "बिलावर", "हीरानगर", "बसोहली", "माहनपुर"],"उधमपुर": ["उधमपुर", "चिनैनी", "रामनगर", "मजालता", "पंचरी"]};
-const VILLAGES = {"जम्मू शहर": ["तालाब तिल्लो", "बोहड़ी", "गांधी नगर", "चन्नी हिम्मत", "जानीपुर", "पलोरा", "दिग्याना", "नरवाल", "भागवती नगर", "त्रिकुटा नगर", "सरवाल", "बक्शी नगर", "चौड़ी गली"],"गांधी नगर": ["गांधी नगर", "शास्त्री नगर", "ग्रीन बेल्ट", "चन्नी हिम्मत"],"बिश्नाह": ["बिश्नाह", "कुंजवानी", "दोमाना", "मीरां साहिब", "रंगपुर"],"आरएस पुरा": ["आरएस पुरा", "बड़ी ब्राह्मणा", "अरनिया", "राठाना", "सिम्बल", "किरपालपुर"],"मीरां साहिब": ["मीरां साहिब", "सिम्बल", "बड़ी ब्राह्मणा", "रंगपुर"],"अखनूर": ["अखनूर", "ज्योतियां", "खौर", "पल्लनवाला", "गुरहा मुड़ियां"],"नगरोटा": ["नगरोटा", "डांसल", "झज्जर कोटली", "टिकरी"],"मार्ह": ["मार्ह", "घो मन्हासां", "परगवाल", "सैंसर", "रख बाहू", "चक भगवान", "ट्रेगड़"],"सतवारी": ["सतवारी", "पल्लनवाला", "छन्नी"],"डांसल": ["डांसल", "नगरोटा"],"खौर": ["खौर", "अखनूर"],"परगवाल": ["परगवाल", "मार्ह"],"चौकी चौरा": ["चौकी चौरा", "चक भगवान"],"सुचेतगढ़": ["सुचेतगढ़", "मीरां साहिब"],"सांबा": ["सांबा शहर", "विजयपुर", "बीरपुर", "राजपुरा", "घगवाल"],"कठुआ": ["कठुआ शहर", "बिलावर", "हीरानगर", "परोल", "बसोहली"]};
+const VILLAGES = {"जम्मू शहर": ["तालाब तिल्लो", "बोहड़ी", "गांधी नगर", "चन्नी हिम्मत", "जानीपुर", "पलोरा", "दिग्याना", "नरवाल", "भागवती नगर", "त्रिकुटा नगर", "सरवाल", "बक्शी नगर", "चौड़ी गली"],"गांधी नगर": ["गांधी नगर", "शास्त्री नगर", "ग्रीन बेल्ट", "चन्नी हिम्मत"],"बिश्नाह": ["बिश्नाह", "कुंजवानी", "दोमाना", "मीरां साहिब", "रंगपुर"],"आरएस पुरा": ["आरएस पुरा", "बड़ी ब्राह्मणा", "अरनिया", "राठाना", "सिम्बल", "किरपालपुर"],"मीरां साहिब": ["मीरां साहिब", "सिम्बल", "बड़ी ब्राह्मणा", "रंगपुर"],"अखनूर": ["अखनूर", "ज्योतियां", "खौर", "पल्लनवाला", "गुरहा मुड़ियां"],"नगरोटा": ["नगरोटा", "डांसल", "झज्जर कोटली", "टिकरी"],"मार्ह": ["मार्ह", "घो मन्हासां", "परगवाल", "सैंसर", "रख बाहू", "चक भगवान", "ट्रेगड़"],"सतवारी": ["सतवारी", "पल्लनवाला", "छन्नी"],"डांसल": ["डांसल", "नगरोटा"],"खौर": ["खौर", "अखनूर"],"परगवाल": ["परगवाल", "मार्ह"],"चौकी चौरा": ["चौकी चौरा", "चक भगवान"], "सुचेतगढ़": ["सुचेतगढ़", "मीरां साहिब"],"सांबा": ["सांबा शहर", "विजयपुर", "बीरपुर", "राजपुरा", "घगवाल"],"कठुआ": ["कठुआ शहर", "बिलावर", "हीरानगर", "परोल", "बसोहली"]};
 const TR=[["owner","🏠","मकान मालिक"],["thekedar","📋","ठेकेदार"],["mistri","🧱","राज मिस्त्री"],["elec","💡","इलेक्ट्रीशियन"],["plumb","🚿","प्लंबर"],["paint","🎨","पेंटर"],["tile","🔲","टाइल मिस्त्री"],["carp","🪚","कारपेंटर"],["lab","⛏️","मजदूर"],["other","➕","और काम"]];
 const T=Object.fromEntries(TR.map(r=>[r[0],r]));
 
-let S={step:"welcome",pos:null,phone:"",role:"",err:"",f:{w:[],dist:"जम्मू",blk:"जम्मू शहर",vill:"तालाब तिल्लो"},q:{t:"all",km:10},tab:"search",uid:null,user:null,list:null,busy:false,isEditing:false, locOff:false};
+let S={step:"loading",pos:null,phone:"",role:"",err:"",f:{w:[],dist:"जम्मू",blk:"जम्मू शहर",vill:"तालाब तिल्लो"},q:{t:"all",km:10},tab:"search",uid:null,user:null,list:null,busy:false,isEditing:false, locOff:false};
 
 const $=id=>document.getElementById(id);
 const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -84,25 +85,20 @@ const inJK=(a,b)=>a>=32.25&&a<=33.15&&b>=74.45&&b<=75.75;
 const km=(a,b,c,d)=>{const R=6371,r=x=>x*Math.PI/180,h=Math.sin(r(c-a)/2)**2+Math.cos(r(a))*Math.cos(r(c))*Math.sin(r(d-b)/2)**2;return 2*R*Math.asin(Math.sqrt(h))};
 const go=s=>{S.step=s;S.err="";draw()};
 
-// Magic Fix 1: Firebase Auth se number uthana (Hamesha yaad rahega)
-onAuthStateChanged(auth,u=>{
-    S.uid=u?u.uid:null;
-    if(u && u.phoneNumber){
-        S.phone = u.phoneNumber.replace("+91", ""); 
-    }
-});
-
 function checkSavedLocation(){
   const savedLoc = localStorage.getItem('ns_location');
+  
   if(savedLoc){
     S.pos = JSON.parse(savedLoc);
     S.locOff = false; 
+    if(S.uid) loadProfile(); 
+    else go("phone"); // Location saved hai toh welcome skip karo
   } else {
     S.pos = DEFAULT_LOC;
     S.locOff = true; 
+    if(S.uid) loadProfile(); 
+    else go("welcome"); // Sirf pehli baar welcome dikhao
   }
-  if(S.uid) loadProfile();
-  else go("phone");
 }
 
 async function loadProfile(){
@@ -111,7 +107,6 @@ async function loadProfile(){
     if(sn.exists()){
       S.user=sn.data();
       
-      // Magic Fix 2: Agar Database mein number khali hai, toh Auth se leke DB mein save karo
       if(!S.user.phone && S.phone){
           S.user.phone = S.phone;
           await updateDoc(doc(db,"users",S.uid), {phone: S.phone}).catch(e=>{});
@@ -151,8 +146,26 @@ async function uploadPhoto(file){
   }catch(e){ S.busy=false; S.err="फोटो अपलोड नहीं हुई।"; draw(); }
 }
 
+onAuthStateChanged(auth,u=>{
+    S.uid=u?u.uid:null;
+    if(u && u.phoneNumber){
+        S.phone = u.phoneNumber.replace("+91", ""); 
+    }
+    checkSavedLocation();
+});
+
 function draw(){
 const A=$("app");
+
+if(S.step==="loading"){
+    A.innerHTML=`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;text-align:center;">
+        <h1 style="color:var(--pri);font-size:36px;margin-bottom:20px;">निर्माण सेतु</h1>
+        <div style="width:40px;height:40px;border:4px solid var(--line);border-top-color:var(--pri);border-radius:50%;animation:spin 1s linear infinite;"></div>
+        <p class="mut" style="margin-top:20px;">लोड हो रहा है...</p>
+        <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
+    </div>`;
+    return;
+}
 
 if(S.step==="welcome"){A.innerHTML=`<div style="padding:40px 20px;text-align:center;">
   <h1 style="color:var(--pri);font-size:36px;margin-bottom:8px;">निर्माण सेतु</h1>
@@ -298,8 +311,6 @@ if(S.step==="form"){
     if(!o&&(!f.y||!f.r)){S.err="अनुभव और रेट भरें।";return draw()}
     
     const fullArea = `${f.vill}, ${f.blk}, ${f.dist}`;
-    
-    // Magic Fix 3: Save karte waqt Auth ka number use karo
     const userPhone = (S.user && S.user.phone) ? S.user.phone : S.phone;
     
     const d={role:S.role,name:f.n,years:o?"":String(f.y),rate:o?"":f.r,area:fullArea,bio:f.bio,work:o?[]:f.w,free:S.user?S.user.free:true,phone:userPhone,la:S.pos.la,lo:S.pos.lo};
@@ -390,6 +401,7 @@ if(S.step==="home"){
     const q=S.q;
     const p = S.pos || DEFAULT_LOC; 
     
+    // Filter Logic: Yahan agar user "All" par hai toh sab dikhega, par card mein Role badge dikhega.
     const L=(S.list||[]).map(w=>{
         let dist = 9999;
         if(w.la && w.lo) dist = km(p.la,p.lo,w.la,w.lo);
@@ -428,11 +440,13 @@ if(S.step==="home"){
       const isTop = parseInt(w.years) >= 5;
       const distText = w.d === 9999 ? "दूरी अज्ञात" : `${w.d.toFixed(1)} किमी दूर`;
       
-      // Magic Fix: Agar number missing hai toh button disable kar do
       const actionsHTML = w.phone ? 
         `<a href="tel:+91${esc(w.phone)}" class="call-btn">📞 कॉल करें</a>
          <a href="https://wa.me/91${esc(w.phone)}" class="wa-btn">WhatsApp</a>` :
         `<span class="no-phone">नंबर उपलब्ध नहीं है</span>`;
+
+      // NAYA: Role ko badge ke roop mein dikhaya gaya hai
+      const roleBadge = T[w.role] ? `<span class="role-badge">${T[w.role][1]} ${T[w.role][2]}</span>` : "";
 
       return `<div class="worker-card">
         <div class="header">
@@ -442,7 +456,9 @@ if(S.step==="home"){
               <h3>${esc(w.name)}</h3>
               ${isTop ? `<span class="trust-badge" style="margin:0;font-size:10px;padding:2px 6px;">⭐ TOP</span>` : ""}
             </div>
-            <div class="role">${T[w.role]?T[w.role][2]:""} · ${esc(w.years)} साल अनुभव</div>
+            <div class="role" style="margin-top:4px;">
+              ${roleBadge} · ${esc(w.years)} साल अनुभव
+            </div>
           </div>
         </div>
         ${w.bio?`<div style="font-size:13px;color:var(--ink);margin-bottom:8px;font-style:italic;">"${esc(w.bio)}"</div>`:""}
@@ -463,7 +479,6 @@ if(S.step==="home"){
   A.querySelectorAll(".nav button").forEach(b=>b.onclick=()=>{S.tab=b.dataset.t;if(S.tab==="search")S.list=null;draw();scrollTo(0,0)})
 }
 }
-if(S.uid) checkSavedLocation(); else go("welcome");
 draw();
 </script>
 </body>
