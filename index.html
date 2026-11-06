@@ -77,7 +77,7 @@ const VILLAGES = {"जम्मू शहर": ["तालाब तिल्ल
 const TR=[["owner","🏠","मकान मालिक"],["thekedar","📋","ठेकेदार"],["mistri","🧱","राज मिस्त्री"],["elec","💡","इलेक्ट्रीशियन"],["plumb","🚿","प्लंबर"],["paint","🎨","पेंटर"],["tile","🔲","टाइल मिस्त्री"],["carp","🪚","कारपेंटर"],["lab","⛏️","मजदूर"],["other","➕","और काम"]];
 const T=Object.fromEntries(TR.map(r=>[r[0],r]));
 
-let S={step:"loading",pos:null,phone:"",role:"",err:"",f:{w:[],dist:"जम्मू",blk:"जम्मू शहर",vill:"तालाब तिल्लो"},q:{t:"all",km:10},tab:"search",uid:null,user:null,list:null,busy:false,isEditing:false, locOff:false};
+let S={step:"loading",pos:null,phone:"",role:"",err:"",f:{w:[],dist:"जम्मू",blk:"जम्मू शहर",vill:"तालाब तिल्लो"},q:{t:"all",km:10},tab:"search",uid:null,user:null,list:null,busy:false,isEditing:false, locOff:false, locSaved:false};
 
 const $=id=>document.getElementById(id);
 const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -86,18 +86,23 @@ const km=(a,b,c,d)=>{const R=6371,r=x=>x*Math.PI/180,h=Math.sin(r(c-a)/2)**2+Mat
 const go=s=>{S.step=s;S.err="";draw()};
 
 function checkSavedLocation(){
-  const savedLoc = localStorage.getItem('ns_location');
+  let savedLoc = null;
+  try { savedLoc = localStorage.getItem('ns_location'); } catch(e) { console.log("Storage blocked"); }
   
-  if(savedLoc){
-    S.pos = JSON.parse(savedLoc);
-    S.locOff = false; 
+  if(savedLoc || S.locSaved){
+    if(savedLoc && !S.locSaved) {
+        try { S.pos = JSON.parse(savedLoc); } catch(e) {}
+        S.locOff = false; 
+    }
+    if(!S.pos) S.pos = DEFAULT_LOC;
+    
     if(S.uid) loadProfile(); 
-    else go("phone"); // Location saved hai toh welcome skip karo
+    else go("phone"); 
   } else {
     S.pos = DEFAULT_LOC;
     S.locOff = true; 
     if(S.uid) loadProfile(); 
-    else go("welcome"); // Sirf pehli baar welcome dikhao
+    else go("welcome"); 
   }
 }
 
@@ -171,33 +176,60 @@ if(S.step==="welcome"){A.innerHTML=`<div style="padding:40px 20px;text-align:cen
   <h1 style="color:var(--pri);font-size:36px;margin-bottom:8px;">निर्माण सेतु</h1>
   <p style="color:var(--mut);margin-bottom:40px;">मजदूर, कारीगर और मकान मालिक को सीधा जोड़ने वाला प्रोफेशनल प्लेटफॉर्म</p>
   <div class="card" style="text-align:left;background:var(--card);padding:20px;border-radius:12px;"><p><b>ऐप शुरू करने के लिए नीचे क्लिक करें।</b></p><p class="mut">लोकेशन चालू होने पर आपको आस-पास के कारीगर दिखेंगे।</p></div>
-  <button class="btn" id="gps">📍 आगे बढ़ें</button>
+  
+  <button class="btn" id="gps">📍 लोकेशन चालू करें</button>
+  <button class="btn alt" id="skipGps" style="border:none;color:var(--mut);text-decoration:underline;margin-top:8px;font-size:15px;">लोकेशन के बिना आगे बढ़ें</button>
+  
   <p class="err">${esc(S.err)}</p>
 </div>`;
+
+$("skipGps").onclick=()=>{
+    S.pos = DEFAULT_LOC; 
+    S.locOff = true; S.locSaved = true;
+    try { localStorage.setItem('ns_location', JSON.stringify(S.pos)); } catch(e) {}
+    checkSavedLocation();
+};
 
 $("gps").onclick=()=>{
     S.err="लोकेशन चेक कर रहे हैं… (कृपया Allow दबाएं)"; draw();
     
+    let isMoved = false;
+    const forceMove = setTimeout(() => {
+        if(!isMoved) {
+            isMoved = true;
+            S.pos = DEFAULT_LOC; S.locOff = true; S.locSaved = true;
+            try { localStorage.setItem('ns_location', JSON.stringify(S.pos)); } catch(e) {}
+            checkSavedLocation();
+        }
+    }, 3000);
+
     if(!navigator.geolocation){
-        S.pos = DEFAULT_LOC; S.locOff = true;
-        localStorage.setItem('ns_location', JSON.stringify(S.pos));
+        clearTimeout(forceMove);
+        S.pos = DEFAULT_LOC; S.locOff = true; S.locSaved = true;
+        try { localStorage.setItem('ns_location', JSON.stringify(S.pos)); } catch(e) {}
         return checkSavedLocation();
     }
     
     navigator.geolocation.getCurrentPosition(
         p=>{
+            if(isMoved) return;
+            isMoved = true;
+            clearTimeout(forceMove);
             let loc = {la:p.coords.latitude, lo:p.coords.longitude};
             if(!inJK(loc.la, loc.lo)) loc = DEFAULT_LOC; 
-            S.pos = loc; S.locOff = false;
-            localStorage.setItem('ns_location', JSON.stringify(S.pos));
+            S.pos = loc; S.locOff = false; S.locSaved = true;
+            try { localStorage.setItem('ns_location', JSON.stringify(S.pos)); } catch(e) {}
             checkSavedLocation();
         },
-        ()=>{
-            S.pos = DEFAULT_LOC; S.locOff = true;
-            localStorage.setItem('ns_location', JSON.stringify(S.pos));
+        (error)=>{
+            if(isMoved) return;
+            isMoved = true;
+            clearTimeout(forceMove);
+            S.pos = DEFAULT_LOC; S.locOff = true; S.locSaved = true;
+            try { localStorage.setItem('ns_location', JSON.stringify(S.pos)); } catch(e) {}
             checkSavedLocation();
         },
-        {enableHighAccuracy:true, timeout:8000, maximumAge:60000}
+        {enableHighAccuracy:false, timeout:3000, maximumAge:60000}
     );
 };return}
 
@@ -390,8 +422,8 @@ if(S.step==="home"){
     $("lo").onclick=async()=>{
         if(confirm("Kya aap sach me logout karna chahte hain?")){
             await signOut(auth);
-            localStorage.removeItem('ns_location');
-            S={step:"welcome",pos:null,phone:"",role:"",err:"",f:{w:[],dist:"जम्मू",blk:"जम्मू शहर",vill:"तालाब तिल्लो"},q:{t:"all",km:10},tab:"search",uid:null,user:null,list:null,busy:false,isEditing:false, locOff:false};
+            try { localStorage.removeItem('ns_location'); } catch(e) {}
+            S={step:"welcome",pos:null,phone:"",role:"",err:"",f:{w:[],dist:"जम्मू",blk:"जम्मू शहर",vill:"तालाब तिल्लो"},q:{t:"all",km:10},tab:"search",uid:null,user:null,list:null,busy:false,isEditing:false, locOff:false, locSaved:false};
             draw();
         }
     };
@@ -401,7 +433,6 @@ if(S.step==="home"){
     const q=S.q;
     const p = S.pos || DEFAULT_LOC; 
     
-    // Filter Logic: Yahan agar user "All" par hai toh sab dikhega, par card mein Role badge dikhega.
     const L=(S.list||[]).map(w=>{
         let dist = 9999;
         if(w.la && w.lo) dist = km(p.la,p.lo,w.la,w.lo);
@@ -445,7 +476,6 @@ if(S.step==="home"){
          <a href="https://wa.me/91${esc(w.phone)}" class="wa-btn">WhatsApp</a>` :
         `<span class="no-phone">नंबर उपलब्ध नहीं है</span>`;
 
-      // NAYA: Role ko badge ke roop mein dikhaya gaya hai
       const roleBadge = T[w.role] ? `<span class="role-badge">${T[w.role][1]} ${T[w.role][2]}</span>` : "";
 
       return `<div class="worker-card">
