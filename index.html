@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>निर्माण सेतु</title>
+<title>Kamgar Setu</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#F8F9FA;--card:#fff;--ink:#111827;--mut:#6B7280;--pri:#F59E0B;--onpri:#fff;--dark:#1F2937;--ondark:#fff;--ok:#10B981;--bad:#EF4444;--line:#E5E7EB;--blue:#3B82F6}
@@ -11,7 +11,7 @@
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.5 "Noto Sans Devanagari",system-ui,sans-serif}
 #app{max-width:520px;margin:0 auto;padding-bottom:80px}
 .top-header{background:var(--card);padding:16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:10}
-.top-header h1{font-size:20px;font-weight:800;margin:0;color:var(--ink)}
+.top-header h1{font-size:22px;font-weight:800;margin:0;color:var(--ink)}
 .profile-cover{height:100px;background:linear-gradient(135deg, var(--dark), var(--blue));border-radius:0 0 24px 24px}
 .profile-info{margin:-50px 16px 16px;background:var(--card);border-radius:16px;padding:20px;text-align:center;box-shadow:0 4px 6px rgba(0,0,0,0.05);position:relative}
 .av-large{width:90px;height:90px;border-radius:50%;background:var(--pri);color:#fff;display:grid;place-items:center;font-size:40px;margin:0 auto 12px;border:4px solid var(--card);overflow:hidden;position:relative;z-index:2}
@@ -30,9 +30,6 @@
 label{display:block;font-weight:600;margin:14px 0 6px;font-size:14px;color:var(--mut)}
 input,select,textarea{width:100%;min-height:48px;font:inherit;padding:12px;border:2px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink)}
 textarea{min-height:90px;resize:vertical}
-.search-box{position:relative;margin-bottom:16px}
-.search-results{position:absolute;top:100%;left:0;right:0;background:var(--card);border:1px solid var(--line);border-radius:12px;max-height:200px;overflow-y:auto;z-index:100;display:none;box-shadow:0 4px 6px rgba(0,0,0,0.1)}
-.search-results div{padding:12px;border-bottom:1px solid var(--line);cursor:pointer}.search-results div:hover{background:var(--bg)}
 .worker-card{background:var(--card);padding:16px;border-radius:16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,0.1);border:1px solid var(--line)}
 .worker-card .header{display:flex;gap:12px;align-items:center;margin-bottom:12px}
 .worker-card .av{width:50px;height:50px;border-radius:50%;background:var(--bg);display:grid;place-items:center;font-size:24px;overflow:hidden}
@@ -52,15 +49,14 @@ textarea{min-height:90px;resize:vertical}
 .filter-chips::-webkit-scrollbar{display:none}
 .chip{white-space:nowrap;padding:8px 16px;border-radius:20px;border:1px solid var(--line);background:var(--card);color:var(--ink);font-weight:600;font-size:14px;cursor:pointer}
 .chip.on{background:var(--dark);color:var(--ondark);border-color:var(--dark)}
-.loc-warning{background:#FEF3C7;color:#92400E;padding:10px 16px;font-size:13px;text-align:center;font-weight:600;border-bottom:1px solid #FDE68A}
 .role-badge {display:inline-block; background:var(--bg); color:var(--ink); padding:2px 8px; border-radius:4px; font-size:12px; font-weight:700; margin-left:4px;}
 </style>
 </head>
 <body>
-<div id="app"></div><div id="rc"></div>
+<div id="app"></div>
 <script type="module">
 import{initializeApp}from"https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
-import{getAuth,RecaptchaVerifier,signInWithPhoneNumber,onAuthStateChanged,signOut}from"https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import{getAuth,onAuthStateChanged,signOut,signInWithEmailAndPassword,createUserWithEmailAndPassword}from"https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import{getFirestore,doc,getDoc,setDoc,updateDoc,collection,query,where,getDocs,serverTimestamp}from"https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
 const app=initializeApp({apiKey:"AIzaSyBsKNi2VzmMO-paZfSuIAoiQXdvLPTQQAQ",authDomain:"nirman-setu-71b9a.firebaseapp.com",projectId:"nirman-setu-71b9a",storageBucket:"nirman-setu-71b9a.firebasestorage.app",messagingSenderId:"838865348565",appId:"1:838865348565:web:ea54c8137be97c023d3f5c"});
@@ -73,57 +69,29 @@ const DEFAULT_LOC = {la: 32.7266, lo: 74.8570};
 
 const DISTRICTS = ["जम्मू", "सांबा", "कठुआ", "उधमपुर", "रियासी", "राजौरी", "पुंछ", "डोडा", "किश्तवाड़", "रामबन"];
 const BLOCKS = {"जम्मू": ["जम्मू शहर", "गांधी नगर", "बिश्नाह", "आरएस पुरा", "मीरां साहिब", "अखनूर", "नगरोटा", "मार्ह", "सतवारी", "डांसल", "खौर", "परगवाल", "चौकी चौरा", "सुचेतगढ़"],"सांबा": ["सांबा", "विजयपुर", "घगवाल", "रामगढ़", "पुरमंडल"],"कठुआ": ["कठुआ", "बिलावर", "हीरानगर", "बसोहली", "माहनपुर"],"उधमपुर": ["उधमपुर", "चिनैनी", "रामनगर", "मजालता", "पंचरी"]};
-const VILLAGES = {"जम्मू शहर": ["तालाब तिल्लो", "बोहड़ी", "गांधी नगर", "चन्नी हिम्मत", "जानीपुर", "पलोरा", "दिग्याना", "नरवाल", "भागवती नगर", "त्रिकुटा नगर", "सरवाल", "बक्शी नगर", "चौड़ी गली"],"गांधी नगर": ["गांधी नगर", "शास्त्री नगर", "ग्रीन बेल्ट", "चन्नी हिम्मत"],"बिश्नाह": ["बिश्नाह", "कुंजवानी", "दोमाना", "मीरां साहिब", "रंगपुर"],"आरएस पुरा": ["आरएस पुरा", "बड़ी ब्राह्मणा", "अरनिया", "राठाना", "सिम्बल", "किरपालपुर"],"मीरां साहिब": ["मीरां साहिब", "सिम्बल", "बड़ी ब्राह्मणा", "रंगपुर"],"अखनूर": ["अखनूर", "ज्योतियां", "खौर", "पल्लनवाला", "गुरहा मुड़ियां"],"नगरोटा": ["नगरोटा", "डांसल", "झज्जर कोटली", "टिकरी"],"मार्ह": ["मार्ह", "घो मन्हासां", "परगवाल", "सैंसर", "रख बाहू", "चक भगवान", "ट्रेगड़"],"सतवारी": ["सतवारी", "पल्लनवाला", "छन्नी"],"डांसल": ["डांसल", "नगरोटा"],"खौर": ["खौर", "अखनूर"],"परगवाल": ["परगवाल", "मार्ह"],"चौकी चौरा": ["चौकी चौरा", "चक भगवान"], "सुचेतगढ़": ["सुचेतगढ़", "मीरां साहिब"],"सांबा": ["सांबा शहर", "विजयपुर", "बीरपुर", "राजपुरा", "घगवाल"],"कठुआ": ["कठुआ शहर", "बिलावर", "हीरानगर", "परोल", "बसोहली"]};
+const VILLAGES = {"जम्मू शहर": ["तालाब तिल्लो", "बोहड़ी", "गांधी नगर", "चन्नी हिम्मत", "जानीपुर", "पलोरा", "दिग्याना", "नरवाल", "भागवती नगर", "त्रिकुटा नगर", "सरवाल", "बक्शी नगर", "चौड़ी गली"],"मार्ह": ["मार्ह", "घो मन्हासां", "परगवाल", "सैंसर", "रख बाहू", "चक भगवान", "ट्रेगड़"]};
+
 const TR=[["owner","🏠","मकान मालिक"],["thekedar","📋","ठेकेदार"],["mistri","🧱","राज मिस्त्री"],["elec","💡","इलेक्ट्रीशियन"],["plumb","🚿","प्लंबर"],["paint","🎨","पेंटर"],["tile","🔲","टाइल मिस्त्री"],["carp","🪚","कारपेंटर"],["lab","⛏️","मजदूर"],["other","➕","और काम"]];
 const T=Object.fromEntries(TR.map(r=>[r[0],r]));
 
-let S={step:"loading",pos:null,phone:"",role:"",err:"",f:{w:[],dist:"जम्मू",blk:"जम्मू शहर",vill:"तालाब तिल्लो"},q:{t:"all",km:10},tab:"search",uid:null,user:null,list:null,busy:false,isEditing:false, locOff:false, locSaved:false};
+let S={step:"login",pos:DEFAULT_LOC,phone:"",pin:"",role:"",err:"",f:{w:[],dist:"जम्मू",blk:"",vill:""},q:{t:"all",km:10},tab:"search",uid:null,user:null,list:null,busy:false,isEditing:false};
 
 const $=id=>document.getElementById(id);
 const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const inJK=(a,b)=>a>=32.25&&a<=33.15&&b>=74.45&&b<=75.75;
 const km=(a,b,c,d)=>{const R=6371,r=x=>x*Math.PI/180,h=Math.sin(r(c-a)/2)**2+Math.cos(r(a))*Math.cos(r(c))*Math.sin(r(d-b)/2)**2;return 2*R*Math.asin(Math.sqrt(h))};
 const go=s=>{S.step=s;S.err="";draw()};
-
-function checkSavedLocation(){
-  let savedLoc = null;
-  try { savedLoc = localStorage.getItem('ns_location'); } catch(e) { console.log("Storage blocked"); }
-  
-  if(savedLoc || S.locSaved){
-    if(savedLoc && !S.locSaved) {
-        try { S.pos = JSON.parse(savedLoc); } catch(e) {}
-        S.locOff = false; 
-    }
-    if(!S.pos) S.pos = DEFAULT_LOC;
-    
-    if(S.uid) loadProfile(); 
-    else go("phone"); 
-  } else {
-    S.pos = DEFAULT_LOC;
-    S.locOff = true; 
-    if(S.uid) loadProfile(); 
-    else go("welcome"); 
-  }
-}
 
 async function loadProfile(){
   try{
     const sn=await getDoc(doc(db,"users",S.uid));
     if(sn.exists()){
       S.user=sn.data();
-      
-      if(!S.user.phone && S.phone){
-          S.user.phone = S.phone;
-          await updateDoc(doc(db,"users",S.uid), {phone: S.phone}).catch(e=>{});
-      }
-      
       if(S.user.phone) S.phone = S.user.phone;
       S.tab=S.user.role==="owner"?"search":"me";
-      
       try{await updateDoc(doc(db,"users",S.uid),{la:S.pos.la,lo:S.pos.lo})}catch(e){}
       go("home")
     } else go("role")
-  } catch(e){ S.err="डेटा नहीं मिला। इंटरनेट देखें।"; go("welcome") }
+  } catch(e){ S.err="डेटा नहीं मिला। इंटरनेट देखें।"; go("login") }
 }
 
 async function loadList(){
@@ -153,119 +121,75 @@ async function uploadPhoto(file){
 
 onAuthStateChanged(auth,u=>{
     S.uid=u?u.uid:null;
-    if(u && u.phoneNumber){
-        S.phone = u.phoneNumber.replace("+91", ""); 
-    }
-    checkSavedLocation();
+    if(S.uid) loadProfile();
+    else draw();
 });
 
 function draw(){
 const A=$("app");
 
-if(S.step==="loading"){
-    A.innerHTML=`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;text-align:center;">
-        <h1 style="color:var(--pri);font-size:36px;margin-bottom:20px;">निर्माण सेतु</h1>
-        <div style="width:40px;height:40px;border:4px solid var(--line);border-top-color:var(--pri);border-radius:50%;animation:spin 1s linear infinite;"></div>
-        <p class="mut" style="margin-top:20px;">लोड हो रहा है...</p>
-        <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
+// 1. LOGIN PAGE
+if(S.step==="login"){
+    A.innerHTML=`<div class="top-header"><h1>Kamgar Setu</h1></div>
+    <div style="padding:20px;">
+      <h2 style="margin-top:0;">लॉगिन / साइन अप</h2>
+      <p class="mut">अपना नंबर और PIN डालें</p>
+      
+      <label for="ph">मोबाइल नंबर</label>
+      <input id="ph" inputmode="numeric" maxlength="10" placeholder="10 अंक" value="${esc(S.phone)}">
+      
+      <label for="pin">4-अंकों का PIN (पासवर्ड)</label>
+      <input id="pin" type="password" inputmode="numeric" maxlength="4" placeholder="जैसे: 1234" value="${esc(S.pin)}">
+      
+      <p class="err">${esc(S.err)}</p>
+      <button class="btn" id="loginBtn" ${S.busy?"disabled":""}>${S.busy?"रुकें…":"लॉगिन करें"}</button>
     </div>`;
+
+    $("loginBtn").onclick=async()=>{
+        const v=$("ph").value.replace(/\D/g,"");
+        const p=$("pin").value.trim();
+        S.phone=v; S.pin=p;
+        
+        if(v.length!==10){S.err="10 अंक का सही नंबर डालें।";return draw()}
+        if(p.length<4){S.err="4 अंकों का PIN डालें।";return draw()}
+        
+        S.busy=true; S.err=""; draw();
+        const email = v + "@kamgarsetu.com"; 
+        
+        try {
+            await signInWithEmailAndPassword(auth, email, p);
+        } catch(e) {
+            if(e.code === 'auth/user-not-found' || e.code === 'auth/invalid-credential' || e.code === 'auth/wrong-password'){
+                if(e.code === 'auth/wrong-password'){ S.busy=false; S.err="Galat PIN! दोबारा कोशिश करें।"; return draw(); }
+                
+                try {
+                    const userCred = await createUserWithEmailAndPassword(auth, email, p);
+                    S.uid = userCred.user.uid;
+                    S.busy=false;
+                    go("role"); 
+                } catch(err) {
+                    S.busy=false; S.err="अकाउंट नहीं बन सका। दोबारा कोशिश करें।"; draw();
+                }
+            } else {
+                S.busy=false; S.err="लॉगिन में समस्या आई।"; draw();
+            }
+        }
+    };
     return;
 }
 
-if(S.step==="welcome"){A.innerHTML=`<div style="padding:40px 20px;text-align:center;">
-  <h1 style="color:var(--pri);font-size:36px;margin-bottom:8px;">निर्माण सेतु</h1>
-  <p style="color:var(--mut);margin-bottom:40px;">मजदूर, कारीगर और मकान मालिक को सीधा जोड़ने वाला प्रोफेशनल प्लेटफॉर्म</p>
-  <div class="card" style="text-align:left;background:var(--card);padding:20px;border-radius:12px;"><p><b>ऐप शुरू करने के लिए नीचे क्लिक करें।</b></p><p class="mut">लोकेशन चालू होने पर आपको आस-पास के कारीगर दिखेंगे।</p></div>
-  
-  <button class="btn" id="gps">📍 लोकेशन चालू करें</button>
-  <button class="btn alt" id="skipGps" style="border:none;color:var(--mut);text-decoration:underline;margin-top:8px;font-size:15px;">लोकेशन के बिना आगे बढ़ें</button>
-  
-  <p class="err">${esc(S.err)}</p>
-</div>`;
-
-$("skipGps").onclick=()=>{
-    S.pos = DEFAULT_LOC; 
-    S.locOff = true; S.locSaved = true;
-    try { localStorage.setItem('ns_location', JSON.stringify(S.pos)); } catch(e) {}
-    checkSavedLocation();
-};
-
-$("gps").onclick=()=>{
-    S.err="लोकेशन चेक कर रहे हैं… (कृपया Allow दबाएं)"; draw();
-    
-    let isMoved = false;
-    const forceMove = setTimeout(() => {
-        if(!isMoved) {
-            isMoved = true;
-            S.pos = DEFAULT_LOC; S.locOff = true; S.locSaved = true;
-            try { localStorage.setItem('ns_location', JSON.stringify(S.pos)); } catch(e) {}
-            checkSavedLocation();
-        }
-    }, 3000);
-
-    if(!navigator.geolocation){
-        clearTimeout(forceMove);
-        S.pos = DEFAULT_LOC; S.locOff = true; S.locSaved = true;
-        try { localStorage.setItem('ns_location', JSON.stringify(S.pos)); } catch(e) {}
-        return checkSavedLocation();
-    }
-    
-    navigator.geolocation.getCurrentPosition(
-        p=>{
-            if(isMoved) return;
-            isMoved = true;
-            clearTimeout(forceMove);
-            let loc = {la:p.coords.latitude, lo:p.coords.longitude};
-            if(!inJK(loc.la, loc.lo)) loc = DEFAULT_LOC; 
-            S.pos = loc; S.locOff = false; S.locSaved = true;
-            try { localStorage.setItem('ns_location', JSON.stringify(S.pos)); } catch(e) {}
-            checkSavedLocation();
-        },
-        (error)=>{
-            if(isMoved) return;
-            isMoved = true;
-            clearTimeout(forceMove);
-            S.pos = DEFAULT_LOC; S.locOff = true; S.locSaved = true;
-            try { localStorage.setItem('ns_location', JSON.stringify(S.pos)); } catch(e) {}
-            checkSavedLocation();
-        },
-        {enableHighAccuracy:false, timeout:3000, maximumAge:60000}
-    );
-};return}
-
-if(S.step==="phone"){A.innerHTML=`<div class="top-header"><h1>निर्माण सेतु</h1></div><div style="padding:20px;">
-  <h2 style="margin-top:0;">लॉगिन / साइन अप</h2><p class="mut">OTP SMS से आएगा</p>
-  <label for="ph">आपका मोबाइल नंबर</label><input id="ph" inputmode="numeric" maxlength="10" placeholder="10 अंक" value="${esc(S.phone)}">
-  <p class="err">${esc(S.err)}</p><button class="btn" id="nx" ${S.busy?"disabled":""}>${S.busy?"भेज रहे हैं…":"OTP भेजें"}</button>
-</div>`;
-$("nx").onclick=async()=>{const v=$("ph").value.replace(/\D/g,"");S.phone=v;if(v.length!==10){S.err="10 अंक का सही नंबर डालें।";return draw()}
-S.busy=true;S.err="";draw();
-try{if(!window.rv)window.rv=new RecaptchaVerifier(auth,"rc",{size:"invisible"});
-S.conf=await signInWithPhoneNumber(auth,"+91"+v,window.rv);S.busy=false;go("otp")}
-catch(e){S.busy=false;try{window.rv.clear()}catch(x){}window.rv=null;S.err="OTP नहीं भेज सके।";draw()}};return}
-
-if(S.step==="otp"){A.innerHTML=`<div class="top-header"><h1>निर्माण सेतु</h1></div><div style="padding:20px;">
-  <h2 style="margin-top:0;">OTP डालें</h2><p class="mut">नंबर: +91 ${esc(S.phone)}</p>
-  <label for="ot">6 अंक का OTP</label><input id="ot" inputmode="numeric" maxlength="6"><p class="err">${esc(S.err)}</p>
-  <button class="btn" id="nx" ${S.busy?"disabled":""}>आगे बढ़ें</button><button class="btn alt" id="bk">नंबर बदलें</button>
-</div>`;
-$("nx").onclick=async()=>{const c=$("ot").value.trim();if(c.length!==6){S.err="6 अंक का OTP डालें।";return draw()}
-S.busy=true;draw();
-try{const r=await S.conf.confirm(c);S.uid=r.user.uid;S.busy=false;loadProfile()}
-catch(e){S.busy=false;S.err="OTP सही नहीं है।";draw()}};
-$("bk").onclick=()=>go("phone");return}
-
-if(S.step==="role"){A.innerHTML=`<div class="top-header"><h1>निर्माण सेतु</h1></div><div style="padding:20px;">
+// 2. ROLE PAGE
+if(S.step==="role"){A.innerHTML=`<div class="top-header"><h1>Kamgar Setu</h1></div><div style="padding:20px;">
   <h2 style="margin-top:0;">आप कौन हैं?</h2><p class="mut">अपनी प्रोफ़ाइल के अनुसार चुनें</p>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:20px;">
     ${TR.map(r=>`<button class="role" data-r="${r[0]}" style="border:2px solid var(--line);background:var(--card);padding:20px;border-radius:16px;font-size:16px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;"><span style="font-size:32px">${r[1]}</span>${r[2]}</button>`).join("")}
   </div>
 </div>`;
-A.querySelectorAll(".role").forEach(b=>b.onclick=()=>{S.role=b.dataset.r;S.f={w:[],dist:"जम्मू",blk:"जम्मू शहर",vill:"तालाब तिल्लो"};go("form")});return}
+A.querySelectorAll(".role").forEach(b=>b.onclick=()=>{S.role=b.dataset.r;S.f={w:[],dist:"जम्मू",blk:"",vill:""};go("form")});return}
 
+// 3. FORM PAGE (Flipkart Style Address)
 if(S.step==="form"){
   const o=S.role==="owner",f=S.f;
-  const blocks = BLOCKS[f.dist] || ["अन्य"];
   
   A.innerHTML=`<div class="top-header">
     <h1>${S.isEditing?"प्रोफ़ाइल अपडेट":"प्रोफ़ाइल बनाएँ"}</h1>
@@ -285,15 +209,17 @@ if(S.step==="form"){
   <label for="dist">जिला (District)</label>
   <select id="dist">${DISTRICTS.map(d=>`<option ${f.dist===d?"selected":""}>${d}</option>`).join("")}</select>
   
-  <label for="blk">ब्लॉक / तहसील (Block)</label>
-  <select id="blk">${blocks.map(b=>`<option ${f.blk===b?"selected":""}>${b}</option>`).join("")}</select>
+  <label for="blk">ब्लॉक / तहसील (Type or Select)</label>
+  <input type="text" id="blk" list="blockList" placeholder="जैसे: मार्ह, जम्मू शहर..." value="${esc(f.blk||'')}">
+  <datalist id="blockList">
+    ${(BLOCKS[f.dist] || []).map(b => `<option value="${b}">`).join('')}
+  </datalist>
   
-  <label for="villSearch">मूल स्थान / गाँव</label>
-  <div class="search-box">
-    <input type="text" id="villSearch" placeholder="गाँव/मोहल्ला का नाम लिखें..." value="${esc(f.vill||'')}" autocomplete="off">
-    <input type="hidden" id="villSelected" value="${esc(f.vill||'')}">
-    <div class="search-results" id="villResults"></div>
-  </div>
+  <label for="vill">गाँव / मोहल्ला (Type or Select)</label>
+  <input type="text" id="vill" list="villageList" placeholder="जैसे: घो मन्हासां..." value="${esc(f.vill||'')}">
+  <datalist id="villageList">
+    ${(VILLAGES[f.blk] || []).map(v => `<option value="${v}">`).join('')}
+  </datalist>
 
   <label for="bio">अपने बारे में (Bio)</label>
   <textarea id="bio" placeholder="अपने काम का अनुभव, खासियत लिखें..." maxlength="150">${esc(f.bio||'')}</textarea>
@@ -305,31 +231,24 @@ if(S.step==="form"){
   </div>`;
   
   const rd=()=>{
-    f.n=$("nm").value.trim(); f.dist=$("dist").value; f.blk=$("blk").value; f.vill=$("villSelected").value || $("villSearch").value.trim();
+    f.n=$("nm").value.trim(); 
+    f.dist=$("dist").value; 
+    f.blk=$("blk").value.trim(); 
+    f.vill=$("vill").value.trim();
     f.bio=$("bio").value.trim();
     if(!o){f.y=$("ye").value; f.r=$("rt").value;}
   };
 
-  $("dist").onchange=()=>{ rd(); f.blk=(BLOCKS[f.dist]||["अन्य"])[0]; f.vill=""; draw(); };
-  $("blk").onchange=()=>{ rd(); f.vill=""; draw(); };
-
-  const villSearch = $("villSearch"), villResults = $("villResults"), villSelected = $("villSelected");
-  villSearch.addEventListener("input", (e) => {
-      const query = e.target.value.toLowerCase(); villSelected.value = ""; 
-      if(query.length < 1) { villResults.style.display = "none"; return; }
-      const currentVillages = VILLAGES[$("blk").value] || [];
-      const filtered = currentVillages.filter(v => v.toLowerCase().includes(query));
-      if(filtered.length > 0) {
-          villResults.innerHTML = filtered.map(v => `<div data-v="${v}">${v}</div>`).join(''); villResults.style.display = "block";
-      } else { villResults.innerHTML = `<div style="color:var(--mut)">कोई गाँव नहीं मिला</div>`; villResults.style.display = "block"; }
-  });
-  villResults.addEventListener("click", (e) => {
-      if(e.target.tagName === "DIV" && e.target.dataset.v) {
-          villSearch.value = e.target.dataset.v; villSelected.value = e.target.dataset.v; villResults.style.display = "none";
+  $("dist").onchange=()=>{ rd(); f.blk=""; f.vill=""; draw(); };
+  
+  $("blk").addEventListener("input", (e) => {
+      const currentBlk = e.target.value;
+      const vList = $("villageList");
+      if(VILLAGES[currentBlk]) {
+          vList.innerHTML = VILLAGES[currentBlk].map(v => `<option value="${v}">`).join('');
+      } else {
+          vList.innerHTML = ''; 
       }
-  });
-  document.addEventListener('click', function(event) {
-      if (!villSearch.contains(event.target) && !villResults.contains(event.target)) { villResults.style.display = "none"; }
   });
 
   A.querySelectorAll(".chip").forEach(b=>b.onclick=()=>{rd();const a=b.dataset.a;f.w=f.w.includes(a)?f.w.filter(x=>x!==a):f.w.concat(a);draw()});
@@ -339,11 +258,12 @@ if(S.step==="form"){
   $("sv").onclick=async()=>{
     rd(); 
     if(!f.n){S.err="अपना नाम लिखें।";return draw()}
+    if(!f.blk){S.err="अपना ब्लॉक लिखें।";return draw()}
     if(!f.vill){S.err="अपना गाँव/एरिया लिखें।";return draw()}
     if(!o&&(!f.y||!f.r)){S.err="अनुभव और रेट भरें।";return draw()}
     
     const fullArea = `${f.vill}, ${f.blk}, ${f.dist}`;
-    const userPhone = (S.user && S.user.phone) ? S.user.phone : S.phone;
+    const userPhone = S.phone; 
     
     const d={role:S.role,name:f.n,years:o?"":String(f.y),rate:o?"":f.r,area:fullArea,bio:f.bio,work:o?[]:f.w,free:S.user?S.user.free:true,phone:userPhone,la:S.pos.la,lo:S.pos.lo};
     
@@ -359,6 +279,7 @@ if(S.step==="form"){
   };return;
 }
 
+// 4. HOME PAGE
 if(S.step==="home"){
   const u=S.user,o=u.role==="owner";
   const nav=`<div class="nav">
@@ -415,15 +336,14 @@ if(S.step==="home"){
     
     $("ed").onclick=()=>{
         S.isEditing = true;
-        S.f = { n: u.name, y: u.years, r: u.rate, bio: u.bio || "", dist: u.area.split(', ')[2] || "जम्मू", blk: u.area.split(', ')[1] || "जम्मू शहर", vill: u.area.split(', ')[0] || "", w: u.work || [] };
+        S.f = { n: u.name, y: u.years, r: u.rate, bio: u.bio || "", dist: u.area.split(', ')[2] || "जम्मू", blk: u.area.split(', ')[1] || "", vill: u.area.split(', ')[0] || "", w: u.work || [] };
         go("form");
     };
     
     $("lo").onclick=async()=>{
         if(confirm("Kya aap sach me logout karna chahte hain?")){
             await signOut(auth);
-            try { localStorage.removeItem('ns_location'); } catch(e) {}
-            S={step:"welcome",pos:null,phone:"",role:"",err:"",f:{w:[],dist:"जम्मू",blk:"जम्मू शहर",vill:"तालाब तिल्लो"},q:{t:"all",km:10},tab:"search",uid:null,user:null,list:null,busy:false,isEditing:false, locOff:false, locSaved:false};
+            S={step:"login",pos:DEFAULT_LOC,phone:"",pin:"",role:"",err:"",f:{w:[],dist:"जम्मू",blk:"",vill:""},q:{t:"all",km:10},tab:"search",uid:null,user:null,list:null,busy:false,isEditing:false};
             draw();
         }
     };
@@ -431,7 +351,7 @@ if(S.step==="home"){
   else {
     if(S.list===null){S.list=[];loadList()}
     const q=S.q;
-    const p = S.pos || DEFAULT_LOC; 
+    const p = S.pos; 
     
     const L=(S.list||[]).map(w=>{
         let dist = 9999;
@@ -450,10 +370,7 @@ if(S.step==="home"){
         return a.d - b.d; 
     });
     
-    const locWarning = S.locOff ? `<div class="loc-warning">📍 आपकी लोकेशन बंद है, जम्मू (डिफ़ॉल्ट) के आस-पास के कारीगर दिखा रहे हैं।</div>` : "";
-
     A.innerHTML=`<div class="top-header"><h1>कारीगर खोजें</h1></div>
-    ${locWarning}
     <div class="filter-chips">
       <button class="chip ${q.t==="all"?"on":""}" data-t="all">सभी</button>
       ${TR.filter(r=>r[0]!=="owner").map(r=>`<button class="chip ${q.t===r[0]?"on":""}" data-t="${r[0]}">${r[1]} ${r[2]}</button>`).join("")}
