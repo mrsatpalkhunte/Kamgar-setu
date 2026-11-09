@@ -185,19 +185,27 @@ async function loadProfile(){
     const sn=await getDoc(doc(db,"users",S.uid));
     if(sn.exists()){
       S.user=sn.data();
+      
+      // NAYA FIX: Agar database mein phone nahi hai, toh auth email se nikaal lo
+      if(!S.user.phone && auth.currentUser.email) {
+          let derivedPhone = auth.currentUser.email.split('@')[0];
+          S.user.phone = derivedPhone;
+          await updateDoc(doc(db,"users",S.uid), {phone: derivedPhone}).catch(e=>{});
+      }
+      
       if(S.user.phone) S.phone = S.user.phone;
       S.tab=S.user.role==="owner"?"search":"me";
       try{await updateDoc(doc(db,"users",S.uid),{la:S.pos.la,lo:S.pos.lo})}catch(e){}
       go("home")
     } else go("role")
-  } catch(e){ S.err=t("डेटा नहीं मिला।"); go("login") }
+  } catch(e){ S.err="डेटा नहीं मिला।"; go("login") }
 }
 
 async function loadList(){
   try{
     const q=await getDocs(query(collection(db,"users"),where("free","==",true)));
     S.list=q.docs.filter(d=>d.id!==S.uid).map(d=>d.data()).filter(w=>w.role!=="owner")
-  } catch(e){ S.list=[]; S.err=t("सूची नहीं आ सकी।"); }
+  } catch(e){ S.list=[]; S.err="सूची नहीं आ सकी।"; }
   draw()
 }
 
@@ -403,7 +411,13 @@ if(S.step==="form"){
     if(!o&&(!f.y||!f.r)){S.err=t("अनुभव और रेट भरें।");return draw()}
     
     const fullArea = `${f.vill}, ${f.blk}, ${f.dist}`;
-    let cleanPhone = String(S.phone || "").replace(/\D/g, "");
+    
+    // NAYA FIX: Phone number fallback
+    let finalPhone = S.phone;
+    if(!finalPhone && auth.currentUser.email) {
+        finalPhone = auth.currentUser.email.split('@')[0];
+    }
+    let cleanPhone = String(finalPhone || "").replace(/\D/g, "");
     if (cleanPhone.length > 10) cleanPhone = cleanPhone.slice(-10);
     
     const d={role:S.role,name:f.n,years:o?"":String(f.y),rate:o?"":f.r,area:fullArea,bio:f.bio,work:o?[]:f.w,free:S.user?S.user.free:true,phone:cleanPhone,la:S.pos.la,lo:S.pos.lo};
@@ -416,7 +430,7 @@ if(S.step==="form"){
         d.created = serverTimestamp(); await setDoc(doc(db,"users",S.uid),d); S.user=d; S.tab=o?"search":"me";
       }
       S.busy=false;go("home");
-    } catch(e){S.busy=false;S.err=t("सेव नहीं हुआ।");draw()}
+    } catch(e){S.busy=false;S.err=t("सेव नहीं हुआ। Error: ") + e.message; draw()}
   };return;
 }
 
@@ -566,4 +580,4 @@ updateMenuLang();
 draw();
 </script>
 </body>
-</html></html>
+</html>
