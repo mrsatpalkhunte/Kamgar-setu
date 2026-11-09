@@ -11,7 +11,19 @@
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.5 "Noto Sans Devanagari",system-ui,sans-serif}
 #app{max-width:520px;margin:0 auto;padding-bottom:80px}
 .top-header{background:var(--card);padding:16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:10}
-.top-header h1{font-size:22px;font-weight:800;margin:0;color:var(--ink)}
+.top-header h1{font-size:20px;font-weight:800;margin:0;color:var(--ink);display:flex;align-items:center;gap:8px;}
+.menu-btn{background:none;border:none;font-size:24px;color:var(--ink);cursor:pointer;padding:0 4px;font-weight:bold;}
+
+/* Side Menu */
+.overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;display:none;}
+.side-menu{position:fixed;top:0;right:-280px;width:280px;height:100%;background:var(--card);z-index:1001;transition:right 0.3s;box-shadow:-2px 0 10px rgba(0,0,0,0.1);display:flex;flex-direction:column;}
+.side-menu.open{right:0;}
+.overlay.open{display:block;}
+.menu-header{padding:20px;background:var(--dark);color:var(--ondark);font-size:20px;font-weight:bold;}
+.menu-item{display:flex;align-items:center;gap:12px;padding:16px;border-bottom:1px solid var(--line);cursor:pointer;color:var(--ink);text-decoration:none;font-weight:600;background:none;border:none;width:100%;text-align:left;font-size:16px;}
+.menu-item:hover{background:var(--bg);}
+.menu-item span{font-size:20px;}
+
 .profile-cover{height:100px;background:linear-gradient(135deg, var(--dark), var(--blue));border-radius:0 0 24px 24px}
 .profile-info{margin:-50px 16px 16px;background:var(--card);border-radius:16px;padding:20px;text-align:center;box-shadow:0 4px 6px rgba(0,0,0,0.05);position:relative}
 .av-large{width:90px;height:90px;border-radius:50%;background:var(--pri);color:#fff;display:grid;place-items:center;font-size:40px;margin:0 auto 12px;border:4px solid var(--card);overflow:hidden;position:relative;z-index:2}
@@ -50,10 +62,26 @@ textarea{min-height:90px;resize:vertical}
 .chip{white-space:nowrap;padding:8px 16px;border-radius:20px;border:1px solid var(--line);background:var(--card);color:var(--ink);font-weight:600;font-size:14px;cursor:pointer}
 .chip.on{background:var(--dark);color:var(--ondark);border-color:var(--dark)}
 .role-badge {display:inline-block; background:var(--bg); color:var(--ink); padding:2px 8px; border-radius:4px; font-size:12px; font-weight:700; margin-left:4px;}
+.loading-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;text-align:center;}
+.spinner{width:40px;height:40px;border:4px solid var(--line);border-top-color:var(--pri);border-radius:50%;animation:spin 1s linear infinite;}
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+.policy-box {background:var(--bg); padding:16px; border-radius:12px; border:1px solid var(--line); font-size:15px; line-height:1.6; margin-bottom:20px; max-height: 60vh; overflow-y: auto;}
 </style>
 </head>
 <body>
 <div id="app"></div>
+
+<!-- Side Menu HTML -->
+<div id="overlay" class="overlay" onclick="toggleMenu()"></div>
+<div id="sideMenu" class="side-menu">
+    <div class="menu-header">Kamgar Setu</div>
+    <button class="menu-item" onclick="switchTab('search')"><span>🔍</span> <span id="m_search">Search</span></button>
+    <button class="menu-item" onclick="switchTab('me')"><span>👤</span> <span id="m_profile">Profile</span></button>
+    <button class="menu-item" onclick="toggleLang()"><span>🌐</span> <span id="m_lang">Language</span></button>
+    <button class="menu-item" onclick="showPolicy()"><span>🔒</span> <span id="m_policy">Privacy Policy</span></button>
+    <button class="menu-item" onclick="doLogout()" style="color:var(--bad)"><span>🚪</span> <span id="m_logout">Logout</span></button>
+</div>
+
 <script type="module">
 import{initializeApp}from"https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
 import{getAuth,onAuthStateChanged,signOut,signInWithEmailAndPassword,createUserWithEmailAndPassword}from"https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
@@ -74,12 +102,83 @@ const VILLAGES = {"जम्मू शहर": ["तालाब तिल्ल
 const TR=[["owner","🏠","मकान मालिक"],["thekedar","📋","ठेकेदार"],["mistri","🧱","राज मिस्त्री"],["elec","💡","इलेक्ट्रीशियन"],["plumb","🚿","प्लंबर"],["paint","🎨","पेंटर"],["tile","🔲","टाइल मिस्त्री"],["carp","🪚","कारपेंटर"],["lab","⛏️","मजदूर"],["other","➕","और काम"]];
 const T=Object.fromEntries(TR.map(r=>[r[0],r]));
 
-let S={step:"login",pos:DEFAULT_LOC,phone:"",pin:"",role:"",err:"",f:{w:[],dist:"जम्मू",blk:"",vill:""},q:{t:"all",km:10},tab:"search",uid:null,user:null,list:null,busy:false,isEditing:false};
+const I18N = {
+  "गोपनीयता नीति (Privacy Policy)": "Privacy Policy", "स्वागत है! आगे बढ़ने से पहले, कृपया ध्यान से पढ़ें:": "Welcome! Please read carefully before proceeding:", "1. इस ऐप का उपयोग करके, आप सहमत होते हैं कि आपकी प्रोफ़ाइल जानकारी (जैसे:": "1. By using this app, you agree that your profile information (like:", "नाम, फ़ोन नंबर, लोकेशन, फोटो और काम का अनुभव": "Name, Phone Number, Location, Photo and Work Experience", ") अन्य उपयोगकर्ताओं (मकान मालिक, ठेकेदार और अन्य कारीगरों) को दिखाई जाएगी।": ") will be shown to other users (house owners, contractors, and other artisans).", "2. इसका उद्देश्य यह है कि मकान मालिक आपसे सीधे संपर्क कर सकें और आपको काम मिल सके।": "2. The purpose is to connect house owners directly with you so you can get work.", "3. Kamgar Setu आपके डेटा को किसी तीसरे पक्ष को नहीं बेचता है।": "3. Kamgar Setu does not sell your data to any third party.", "4. आप कभी भी अपनी प्रोफ़ाइल की जानकारी बदल सकते हैं।": "4. You can update your profile information at any time.", "मैं सहमत हूँ और आगे बढ़ें": "I Agree & Proceed", "लोड हो रहा है...": "Loading...", "लॉगिन / साइन अप": "Login / Sign Up", "मोबाइल नंबर से लॉगिन करें": "Login with mobile number", "मोबाइल नंबर": "Mobile Number", "10 अंक": "10 digits", "OTP भेजें": "Send OTP", "भेज रहे हैं…": "Sending...", "OTP डालें": "Enter OTP", "नंबर: ": "Number: ", "(टेस्टिंग के लिए OTP: 123456)": "(Testing OTP: 123456)", "6 अंकों का OTP": "6-digit OTP", "वेरिफाई करें": "Verify", "वेरिफाई कर रहे हैं…": "Verifying...", "नंबर बदलें": "Change Number", "10 अंक का सही नंबर डालें।": "Enter a valid 10-digit number.", "गलत OTP! टेस्टिंग के लिए 123456 डालें।": "Wrong OTP! Use 123456 for testing.", "अकाउंट नहीं बन सका।": "Account could not be created.", "लॉगिन में समस्या।": "Login issue.", "आप कौन हैं?": "Who are you?", "अपनी प्रोफ़ाइल के अनुसार चुनें": "Select according to your role", "प्रोफ़ाइल बनाएँ": "Create Profile", "प्रोफ़ाइल अपडेट": "Update Profile", "रद्द करें": "Cancel", "नाम": "Name", "अनुभव (कितने साल)": "Experience (Years)", "आपका रेट / चार्ज (Rate)": "Your Rate / Charge", "जैसे: ₹800 प्रति दिन, ₹20 प्रति स्क्वायर फीट, या एरिया के हिसाब से": "e.g., ₹800/day, ₹20/sqft, or as per area", "जिला (District)": "District", "ब्लॉक / तहसील": "Block / Tehsil", "जैसे: मार्ह, जम्मू शहर...": "e.g., Marh, Jammu City...", "गाँव / मोहल्ला": "Village / Area", "जैसे: घो मन्हासां...": "e.g., Gho Manhasan...", "अपने बारे में (Bio)": "About Me (Bio)", "अपने काम का अनुभव, खासियत लिखें...": "Write about your experience, skills...", "कहाँ काम करते हैं?": "Where do you work?", "सेव करें": "Save", "अपडेट करें": "Update", "कारीगर खोजें": "Find Artisans", "सभी": "All", "5 किमी के अंदर": "Within 5 km", "10 किमी के अंदर": "Within 10 km", "20 किमी के अंदर": "Within 20 km", "रिफ्रेश": "Refresh", "कारीगर मिले।": "artisans found.", "साल अनुभव": "years exp", "किमी दूर": "km away", "दूरी अज्ञात": "Distance unknown", "नंबर उपलब्ध नहीं है": "Number unavailable", "कॉल करें": "Call", "मेरी प्रोफ़ाइल": "My Profile", "फोटो बदलें": "Change Photo", "साल": "Years", "रेट": "Rate", "पता": "Address", "काम का इलाका": "Work Area", "फ़ोन": "Phone", "मैं काम के लिए खाली हूँ": "Available for work", "मैं अभी व्यस्त हूँ": "Currently busy", "प्रोफ़ाइल एडिट करें": "Edit Profile", "खोजें": "Search", "प्रोफ़ाइल": "Profile", "मकान मालिक": "House Owner", "ठेकेदार": "Contractor", "राज मिस्त्री": "Mason", "इलेक्ट्रीशियन": "Electrician", "प्लंबर": "Plumber", "पेंटर": "Painter", "टाइल मिस्त्री": "Tile Mason", "कारपेंटर": "Carpenter", "मजदूर": "Laborer", "और काम": "Other"
+};
+
+let S={step:"policy",pos:DEFAULT_LOC,phone:"",otp:"",role:"",err:"",f:{w:[],dist:"जम्मू",blk:"",vill:"",r:""},q:{t:"all",km:10},tab:"search",uid:null,user:null,list:null,busy:false,isEditing:false,lang: localStorage.getItem('kamgar_lang') || 'hi'};
 
 const $=id=>document.getElementById(id);
+const t=s=>S.lang === 'en' ? (I18N[s] || s) : s;
 const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const km=(a,b,c,d)=>{const R=6371,r=x=>x*Math.PI/180,h=Math.sin(r(c-a)/2)**2+Math.cos(r(a))*Math.cos(r(c))*Math.sin(r(d-b)/2)**2;return 2*R*Math.asin(Math.sqrt(h))};
 const go=s=>{S.step=s;S.err="";draw()};
+
+window.toggleMenu = () => {
+    document.getElementById('sideMenu').classList.toggle('open');
+    document.getElementById('overlay').classList.toggle('open');
+    updateMenuLang();
+};
+
+window.switchTab = (tab) => {
+    toggleMenu();
+    if(!S.uid) { go("login"); return; }
+    S.tab = tab; S.step = "home"; draw();
+};
+
+window.toggleLang = () => {
+    S.lang = S.lang === 'hi' ? 'en' : 'hi';
+    localStorage.setItem('kamgar_lang', S.lang);
+    updateMenuLang();
+    draw();
+};
+
+window.showPolicy = () => {
+    toggleMenu();
+    S.step = "policy"; draw();
+};
+
+window.doLogout = async () => {
+    toggleMenu();
+    if(confirm("Are you sure you want to logout?")){
+        await signOut(auth);
+        S={step:"login",pos:DEFAULT_LOC,phone:"",otp:"",role:"",err:"",f:{w:[],dist:"जम्मू",blk:"",vill:"",r:""},q:{t:"all",km:10},tab:"search",uid:null,user:null,list:null,busy:false,isEditing:false,lang:S.lang};
+        draw();
+    }
+};
+
+function updateMenuLang() {
+    document.getElementById('m_search').innerText = t("खोजें");
+    document.getElementById('m_profile').innerText = t("मेरी प्रोफ़ाइल");
+    document.getElementById('m_lang').innerText = S.lang === 'hi' ? 'English' : 'हिंदी';
+    document.getElementById('m_policy').innerText = t("गोपनीयता नीति (Privacy Policy)");
+    document.getElementById('m_logout').innerText = S.lang === 'hi' ? 'लॉगआउट' : 'Logout';
+}
+
+const Header = (title) => `
+<div class="top-header">
+    <h1>${title}</h1>
+    <button class="menu-btn" onclick="toggleMenu()">⋮</button>
+</div>`;
+
+function initLocation() {
+    let saved = localStorage.getItem('kamgar_user_loc');
+    if (saved) {
+        S.pos = JSON.parse(saved);
+    } else {
+        if(navigator.geolocation){
+            navigator.geolocation.getCurrentPosition(
+                p => {
+                    S.pos = {la: p.coords.latitude, lo: p.coords.longitude};
+                    localStorage.setItem('kamgar_user_loc', JSON.stringify(S.pos));
+                    if(S.step === 'home' && S.tab === 'search') loadList();
+                },
+                (err) => { },
+                {enableHighAccuracy: false, timeout: 3000, maximumAge: 60000}
+            );
+        }
+    }
+}
 
 async function loadProfile(){
   try{
@@ -91,20 +190,20 @@ async function loadProfile(){
       try{await updateDoc(doc(db,"users",S.uid),{la:S.pos.la,lo:S.pos.lo})}catch(e){}
       go("home")
     } else go("role")
-  } catch(e){ S.err="डेटा नहीं मिला। इंटरनेट देखें।"; go("login") }
+  } catch(e){ S.err=t("डेटा नहीं मिला।"); go("login") }
 }
 
 async function loadList(){
   try{
     const q=await getDocs(query(collection(db,"users"),where("free","==",true)));
     S.list=q.docs.filter(d=>d.id!==S.uid).map(d=>d.data()).filter(w=>w.role!=="owner")
-  } catch(e){ S.list=[]; S.err="सूची नहीं आ सकी।"; }
+  } catch(e){ S.list=[]; S.err=t("सूची नहीं आ सकी।"); }
   draw()
 }
 
 async function uploadPhoto(file){
   if(!file) return;
-  S.busy=true; S.err="फोटो अपलोड हो रही है... कृपया रुकें"; draw();
+  S.busy=true; S.err="Photo uploading..."; draw();
   try{
     const formData = new FormData();
     formData.append('file', file);
@@ -116,134 +215,161 @@ async function uploadPhoto(file){
       S.user.photoURL = data.secure_url;
       S.busy=false; S.err=""; draw();
     } else { throw new Error("URL nahi mila"); }
-  }catch(e){ S.busy=false; S.err="फोटो अपलोड नहीं हुई।"; draw(); }
+  }catch(e){ S.busy=false; S.err="Photo upload failed."; draw(); }
 }
 
-  onAuthStateChanged(auth,u=>{
+onAuthStateChanged(auth,u=>{
     S.uid=u?u.uid:null;
-    
-    // Naya Background Location Logic
-    if(navigator.geolocation){
-        navigator.geolocation.getCurrentPosition(
-            p => {
-                let loc = {la: p.coords.latitude, lo: p.coords.longitude};
-                S.pos = loc;
-                if(S.uid) {
-                    updateDoc(doc(db, "users", S.uid), {la: S.pos.la, lo: S.pos.lo}).catch(e=>{});
-                }
-            },
-            (err) => { console.log("Location permission denied"); },
-            {enableHighAccuracy: true, timeout: 5000, maximumAge: 0}
-        );
-    }
-
+    initLocation(); 
     if(S.uid) loadProfile();
-    else draw();
+    else if(S.step !== "policy") go("login"); 
 });
 
 function draw(){
 const A=$("app");
 
-// 1. LOGIN PAGE
-if(S.step==="login"){
-    A.innerHTML=`<div class="top-header"><h1>Kamgar Setu</h1></div>
+// 0. POLICY SCREEN
+if(S.step==="policy"){
+    if(localStorage.getItem('kamgar_policy_accepted') === 'true' && !S.uid){
+        S.step = "loading"; draw(); return;
+    }
+    A.innerHTML=Header('Kamgar Setu')+`
     <div style="padding:20px;">
-      <h2 style="margin-top:0;">लॉगिन / साइन अप</h2>
-      <p class="mut">अपना नंबर और PIN डालें</p>
-      
-      <label for="ph">मोबाइल नंबर</label>
-      <input id="ph" inputmode="numeric" maxlength="10" placeholder="10 अंक" value="${esc(S.phone)}">
-      
-      <label for="pin">6-अंकों का PIN (पासवर्ड)</label>
-      <input id="pin" type="password" inputmode="numeric" maxlength="6" placeholder="जैसे: 123456" value="${esc(S.pin)}">
-      
-      <p class="err">${esc(S.err)}</p>
-      <button class="btn" id="loginBtn" ${S.busy?"disabled":""}>${S.busy?"रुकें…":"लॉगिन करें"}</button>
+      <h2 style="margin-top:0; color:var(--pri);">${t("गोपनीयता नीति (Privacy Policy)")}</h2>
+      <div class="policy-box">
+        <p><b>${t("स्वागत है! आगे बढ़ने से पहले, कृपया ध्यान से पढ़ें:")}</b></p>
+        <p>${t("1. इस ऐप का उपयोग करके, आप सहमत होते हैं कि आपकी प्रोफ़ाइल जानकारी (जैसे:")} <b>${t("नाम, फ़ोन नंबर, लोकेशन, फोटो और काम का अनुभव")}</b> ${t(") अन्य उपयोगकर्ताओं (मकान मालिक, ठेकेदार और अन्य कारीगरों) को दिखाई जाएगी।")}</p>
+        <p>${t("2. इसका उद्देश्य यह है कि मकान मालिक आपसे सीधे संपर्क कर सकें और आपको काम मिल सके।")}</p>
+        <p>${t("3. Kamgar Setu आपके डेटा को किसी तीसरे पक्ष को नहीं बेचता है।")}</p>
+        <p>${t("4. आप कभी भी अपनी प्रोफ़ाइल की जानकारी बदल सकते हैं।")}</p>
+      </div>
+      <button class="btn" id="acceptBtn">${t("मैं सहमत हूँ और आगे बढ़ें")}</button>
     </div>`;
-
-    $("loginBtn").onclick=async()=>{
-        const v=$("ph").value.replace(/\D/g,"");
-        const p=$("pin").value.trim();
-        S.phone=v; S.pin=p;
-        
-        if(v.length!==10){S.err="10 अंक का सही नंबर डालें।";return draw()}
-        if(p.length<6){S.err="6 अंकों का PIN डालें।";return draw()}
-        
-        S.busy=true; S.err=""; draw();
-        const email = v + "@kamgarsetu.com"; 
-        
-        try {
-            await signInWithEmailAndPassword(auth, email, p);
-        } catch(e) {
-            if(e.code === 'auth/user-not-found' || e.code === 'auth/invalid-credential' || e.code === 'auth/wrong-password'){
-                if(e.code === 'auth/wrong-password'){ S.busy=false; S.err="Galat PIN! दोबारा कोशिश करें।"; return draw(); }
-                
-                try {
-                    const userCred = await createUserWithEmailAndPassword(auth, email, p);
-                    S.uid = userCred.user.uid;
-                    S.busy=false;
-                    go("role"); 
-                } catch(err) {
-                    S.busy=false; S.err="अकाउंट नहीं बन सका ("+err.code+")।"; draw();
-                }
-            } else {
-                S.busy=false; S.err="लॉगिन में समस्या ("+e.code+")।"; draw();
-            }
-        }
+    $("acceptBtn").onclick=()=>{ 
+        localStorage.setItem('kamgar_policy_accepted', 'true'); 
+        if(S.uid) go("home");
+        else S.step = "loading"; draw(); 
     };
     return;
 }
 
-// 2. ROLE PAGE
-if(S.step==="role"){A.innerHTML=`<div class="top-header"><h1>Kamgar Setu</h1></div><div style="padding:20px;">
-  <h2 style="margin-top:0;">आप कौन हैं?</h2><p class="mut">अपनी प्रोफ़ाइल के अनुसार चुनें</p>
+// 1. LOADING SCREEN
+if(S.step==="loading"){
+    A.innerHTML=`<div class="loading-screen">
+        <h1 style="color:var(--pri);font-size:36px;margin-bottom:20px;">Kamgar Setu</h1>
+        <div class="spinner"></div>
+        <p class="mut" style="margin-top:20px;">${t("लोड हो रहा है...")}</p>
+    </div>`;
+    return;
+}
+
+// 2. LOGIN PAGE
+if(S.step==="login"){
+    A.innerHTML=Header('Kamgar Setu')+`
+    <div style="padding:20px;">
+      <h2 style="margin-top:0;">${t("लॉगिन / साइन अप")}</h2>
+      <p class="mut">${t("मोबाइल नंबर से लॉगिन करें")}</p>
+      <label for="ph">${t("मोबाइल नंबर")}</label>
+      <input id="ph" inputmode="numeric" maxlength="10" placeholder="${t("10 अंक")}" value="${esc(S.phone)}">
+      <p class="err">${esc(S.err)}</p>
+      <button class="btn" id="sendOtpBtn" ${S.busy?"disabled":""}>${S.busy?t("भेज रहे हैं…"):t("OTP भेजें")}</button>
+    </div>`;
+
+    $("sendOtpBtn").onclick=()=>{
+        const v=$("ph").value.replace(/\D/g,"");
+        S.phone=v;
+        if(v.length!==10){S.err=t("10 अंक का सही नंबर डालें।");return draw()}
+        S.err=""; S.busy=true; draw();
+        setTimeout(() => { S.busy=false; go("otp"); }, 1000);
+    };
+    return;
+}
+
+// 3. OTP PAGE
+if(S.step==="otp"){
+    A.innerHTML=Header('Kamgar Setu')+`
+    <div style="padding:20px;">
+      <h2 style="margin-top:0;">${t("OTP डालें")}</h2>
+      <p class="mut">${t("नंबर: ")} +91 ${esc(S.phone)}</p>
+      <p style="color:var(--blue);font-weight:bold;font-size:14px;">${t("(टेस्टिंग के लिए OTP: 123456)")}</p>
+      <label for="otp">${t("6 अंकों का OTP")}</label>
+      <input id="otp" inputmode="numeric" maxlength="6" placeholder="123456" value="${esc(S.otp)}">
+      <p class="err">${esc(S.err)}</p>
+      <button class="btn" id="verifyBtn" ${S.busy?"disabled":""}>${S.busy?t("वेरिफाई कर रहे हैं…"):t("वेरिफाई करें")}</button>
+      <button class="btn alt" id="bk">${t("नंबर बदलें")}</button>
+    </div>`;
+
+    $("verifyBtn").onclick=async()=>{
+        const c=$("otp").value.trim();
+        S.otp=c;
+        if(c !== "123456"){ S.err=t("गलत OTP! टेस्टिंग के लिए 123456 डालें।"); return draw(); }
+        S.busy=true; S.err=""; draw();
+        const email = S.phone + "@kamgarsetu.com";
+        const testPassword = "123456"; 
+        try {
+            await signInWithEmailAndPassword(auth, email, testPassword);
+        } catch(e) {
+            if(e.code === 'auth/user-not-found' || e.code === 'auth/invalid-credential' || e.code === 'auth/wrong-password'){
+                try {
+                    await createUserWithEmailAndPassword(auth, email, testPassword);
+                    go("role"); 
+                } catch(err) {
+                    S.busy=false; S.err=t("अकाउंट नहीं बन सका।"); draw();
+                }
+            } else { S.busy=false; S.err=t("लॉगिन में समस्या।"); draw(); }
+        }
+    };
+    $("bk").onclick=()=>{ S.otp=""; go("login"); };
+    return;
+}
+
+// 4. ROLE PAGE
+if(S.step==="role"){
+  A.innerHTML=Header('Kamgar Setu')+`<div style="padding:20px;">
+  <h2 style="margin-top:0;">${t("आप कौन हैं?")}</h2><p class="mut">${t("अपनी प्रोफ़ाइल के अनुसार चुनें")}</p>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:20px;">
-    ${TR.map(r=>`<button class="role" data-r="${r[0]}" style="border:2px solid var(--line);background:var(--card);padding:20px;border-radius:16px;font-size:16px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;"><span style="font-size:32px">${r[1]}</span>${r[2]}</button>`).join("")}
+    ${TR.map(r=>`<button class="role" data-r="${r[0]}" style="border:2px solid var(--line);background:var(--card);padding:20px;border-radius:16px;font-size:16px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;"><span style="font-size:32px">${r[1]}</span>${t(r[2])}</button>`).join("")}
   </div>
 </div>`;
-A.querySelectorAll(".role").forEach(b=>b.onclick=()=>{S.role=b.dataset.r;S.f={w:[],dist:"जम्मू",blk:"",vill:""};go("form")});return}
+A.querySelectorAll(".role").forEach(b=>b.onclick=()=>{S.role=b.dataset.r;S.f={w:[],dist:"जम्मू",blk:"",vill:"",r:""};go("form")});return}
 
-// 3. FORM PAGE (Flipkart Style Address)
+// 5. FORM PAGE
 if(S.step==="form"){
   const o=S.role==="owner",f=S.f;
   
-  A.innerHTML=`<div class="top-header">
-    <h1>${S.isEditing?"प्रोफ़ाइल अपडेट":"प्रोफ़ाइल बनाएँ"}</h1>
-    ${S.isEditing?`<button id="cn" style="background:none;border:none;color:var(--mut);font-weight:600">रद्द करें</button>`:""}
-  </div>
+  A.innerHTML=Header(t(S.isEditing?"प्रोफ़ाइल अपडेट":"प्रोफ़ाइल बनाएँ"))+`
   <div style="padding:16px;">
-  <label for="nm">नाम</label><input id="nm" maxlength="60" value="${esc(f.n||'')}">
-  ${o?"":`<label for="ye">अनुभव (कितने साल)</label><input id="ye" inputmode="numeric" maxlength="2" value="${esc(f.y||'')}">
-  <label for="rt">आपका रेट (Rate)</label>
-  <select id="rt">
-    <option value="बातचीत पर" ${f.r==="बातचीत पर"?"selected":""}>बातचीत पर</option>
-    <option value="साइट देखकर तय होगा" ${f.r==="साइट देखकर तय होगा"?"selected":""}>साइट देखकर तय होगा</option>
-    <option value="प्रति स्क्वायर फीट" ${f.r==="प्रति स्क्वायर फीट"?"selected":""}>प्रति स्क्वायर फीट</option>
-    <option value="प्रति दिन" ${f.r==="प्रति दिन"?"selected":""}>प्रति दिन</option>
-  </select>`}
+  <label for="nm">${t("नाम")}</label><input id="nm" maxlength="60" value="${esc(f.n||'')}">
   
-  <label for="dist">जिला (District)</label>
+  ${o?"":`<label for="ye">${t("अनुभव (कितने साल)")}</label><input id="ye" inputmode="numeric" maxlength="2" value="${esc(f.y||'')}">
+  
+  <label for="rt">${t("आपका रेट / चार्ज (Rate)")}</label>
+  <input id="rt" maxlength="50" placeholder="${t("जैसे: ₹800 प्रति दिन, ₹20 प्रति स्क्वायर फीट, या एरिया के हिसाब से")}" value="${esc(f.r||'')}">
+  `}
+  
+  <label for="dist">${t("जिला (District)")}</label>
   <select id="dist">${DISTRICTS.map(d=>`<option ${f.dist===d?"selected":""}>${d}</option>`).join("")}</select>
   
-  <label for="blk">ब्लॉक / तहसील (Type or Select)</label>
-  <input type="text" id="blk" list="blockList" placeholder="जैसे: मार्ह, जम्मू शहर..." value="${esc(f.blk||'')}">
+  <label for="blk">${t("ब्लॉक / तहसील")}</label>
+  <input type="text" id="blk" list="blockList" placeholder="${t("जैसे: मार्ह, जम्मू शहर...")}" value="${esc(f.blk||'')}">
   <datalist id="blockList">
     ${(BLOCKS[f.dist] || []).map(b => `<option value="${b}">`).join('')}
   </datalist>
   
-  <label for="vill">गाँव / मोहल्ला (Type or Select)</label>
-  <input type="text" id="vill" list="villageList" placeholder="जैसे: घो मन्हासां..." value="${esc(f.vill||'')}">
+  <label for="vill">${t("गाँव / मोहल्ला")}</label>
+  <input type="text" id="vill" list="villageList" placeholder="${t("जैसे: घो मन्हासां...")}" value="${esc(f.vill||'')}">
   <datalist id="villageList">
     ${(VILLAGES[f.blk] || []).map(v => `<option value="${v}">`).join('')}
   </datalist>
 
-  <label for="bio">अपने बारे में (Bio)</label>
-  <textarea id="bio" placeholder="अपने काम का अनुभव, खासियत लिखें..." maxlength="150">${esc(f.bio||'')}</textarea>
+  <label for="bio">${t("अपने बारे में (Bio)")}</label>
+  <textarea id="bio" placeholder="${t("अपने काम का अनुभव, खासियत लिखें...")}" maxlength="150">${esc(f.bio||'')}</textarea>
 
-  ${o?"":`<label>कहाँ काम करते हैं?</label><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">${DISTRICTS.map(a=>`<button type="button" class="chip ${f.w&&f.w.includes(a)?"on":""}" data-a="${a}">${a}</button>`).join("")}</div>`}
+  ${o?"":`<label>${t("कहाँ काम करते हैं?")}</label><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">${DISTRICTS.map(a=>`<button type="button" class="chip ${f.w&&f.w.includes(a)?"on":""}" data-a="${a}">${a}</button>`).join("")}</div>`}
   
   <p class="err">${esc(S.err)}</p>
-  <button class="btn blue" id="sv" ${S.busy?"disabled":""}>${S.isEditing?"अपडेट करें":"सेव करें"}</button>
+  <button class="btn blue" id="sv" ${S.busy?"disabled":""}>${S.isEditing?t("अपडेट करें"):t("सेव करें")}</button>
+  ${S.isEditing?`<button class="btn alt" id="cn">${t("रद्द करें")}</button>`:""}
   </div>`;
   
   const rd=()=>{
@@ -252,7 +378,7 @@ if(S.step==="form"){
     f.blk=$("blk").value.trim(); 
     f.vill=$("vill").value.trim();
     f.bio=$("bio").value.trim();
-    if(!o){f.y=$("ye").value; f.r=$("rt").value;}
+    if(!o){f.y=$("ye").value; f.r=$("rt").value.trim();}
   };
 
   $("dist").onchange=()=>{ rd(); f.blk=""; f.vill=""; draw(); };
@@ -262,26 +388,25 @@ if(S.step==="form"){
       const vList = $("villageList");
       if(VILLAGES[currentBlk]) {
           vList.innerHTML = VILLAGES[currentBlk].map(v => `<option value="${v}">`).join('');
-      } else {
-          vList.innerHTML = ''; 
-      }
+      } else { vList.innerHTML = ''; }
   });
 
   A.querySelectorAll(".chip").forEach(b=>b.onclick=()=>{rd();const a=b.dataset.a;f.w=f.w.includes(a)?f.w.filter(x=>x!==a):f.w.concat(a);draw()});
   
-  if(S.isEditing) $("cn").onclick=()=>{ S.isEditing=false; draw(); };
+  if(S.isEditing) $("cn").onclick=()=>{ S.isEditing=false; go("home"); };
 
   $("sv").onclick=async()=>{
     rd(); 
-    if(!f.n){S.err="अपना नाम लिखें।";return draw()}
-    if(!f.blk){S.err="अपना ब्लॉक लिखें।";return draw()}
-    if(!f.vill){S.err="अपना गाँव/एरिया लिखें।";return draw()}
-    if(!o&&(!f.y||!f.r)){S.err="अनुभव और रेट भरें।";return draw()}
+    if(!f.n){S.err=t("अपना नाम लिखें।");return draw()}
+    if(!f.blk){S.err=t("अपना ब्लॉक लिखें।");return draw()}
+    if(!f.vill){S.err=t("अपना गाँव/एरिया लिखें।");return draw()}
+    if(!o&&(!f.y||!f.r)){S.err=t("अनुभव और रेट भरें।");return draw()}
     
     const fullArea = `${f.vill}, ${f.blk}, ${f.dist}`;
-    const userPhone = S.phone; 
+    let cleanPhone = String(S.phone || "").replace(/\D/g, "");
+    if (cleanPhone.length > 10) cleanPhone = cleanPhone.slice(-10);
     
-    const d={role:S.role,name:f.n,years:o?"":String(f.y),rate:o?"":f.r,area:fullArea,bio:f.bio,work:o?[]:f.w,free:S.user?S.user.free:true,phone:userPhone,la:S.pos.la,lo:S.pos.lo};
+    const d={role:S.role,name:f.n,years:o?"":String(f.y),rate:o?"":f.r,area:fullArea,bio:f.bio,work:o?[]:f.w,free:S.user?S.user.free:true,phone:cleanPhone,la:S.pos.la,lo:S.pos.lo};
     
     S.busy=true;draw();
     try{
@@ -291,39 +416,36 @@ if(S.step==="form"){
         d.created = serverTimestamp(); await setDoc(doc(db,"users",S.uid),d); S.user=d; S.tab=o?"search":"me";
       }
       S.busy=false;go("home");
-    } catch(e){S.busy=false;S.err="सेव नहीं हुआ।";draw()}
+    } catch(e){S.busy=false;S.err=t("सेव नहीं हुआ।");draw()}
   };return;
 }
 
-// 4. HOME PAGE
+// 6. HOME PAGE
 if(S.step==="home"){
   const u=S.user,o=u.role==="owner";
   const nav=`<div class="nav">
-    <button data-t="search" class="${S.tab==="search"?"on":""}"><span>🔍</span> खोजें</button>
-    <button data-t="me" class="${S.tab==="me"?"on":""}"><span>👤</span> प्रोफ़ाइल</button>
+    <button data-t="search" class="${S.tab==="search"?"on":""}"><span>🔍</span> ${t("खोजें")}</button>
+    <button data-t="me" class="${S.tab==="me"?"on":""}"><span>👤</span> ${t("प्रोफ़ाइल")}</button>
   </div>`;
   
   if(S.tab==="me"){
     const isTopRated = parseInt(u.years) >= 5;
     
-    A.innerHTML=`<div class="top-header">
-        <h1>मेरी प्रोफ़ाइल</h1>
-        <button id="lo" style="background:none;border:none;font-size:24px;cursor:pointer;color:var(--bad);padding:0 10px;" title="Logout">🚪</button>
-    </div>
+    A.innerHTML=Header(t("मेरी प्रोफ़ाइल"))+`
     <div class="profile-cover"></div>
     <div class="profile-info">
       ${isTopRated ? `<div class="trust-badge">⭐ TOP RATED</div>` : ""}
       
-      <label class="av-large" style="cursor:pointer" title="फोटो बदलें">
+      <label class="av-large" style="cursor:pointer" title="${t("फोटो बदलें")}">
         ${u.photoURL ? `<img src="${u.photoURL}">` : T[u.role][1]}
         <input type="file" id="photoUpload" accept="image/*" style="display:none">
       </label>
       
       <h2>${esc(u.name)}</h2>
-      <div class="role">${T[u.role][2]}</div>
+      <div class="role">${t(T[u.role][2])}</div>
       
       <div onclick="document.getElementById('photoUpload').click()" style="color:var(--blue);font-weight:600;font-size:14px;cursor:pointer;margin-bottom:12px;">
-        📷 फोटो बदलें
+        📷 ${t("फोटो बदलें")}
       </div>
 
       ${S.busy ? `<div style="color:var(--pri);font-weight:bold;margin-bottom:10px;">${esc(S.err)}</div>` : ""}
@@ -332,36 +454,31 @@ if(S.step==="home"){
       ${u.bio?`<div class="bio-text">"${esc(u.bio)}"</div>`:""}
       
       <div class="stats-grid">
-        ${o?"":`<div class="stat-box"><b>${esc(u.years)} साल</b><span>अनुभव</span></div>`}
-        ${o?"":`<div class="stat-box"><b>${esc(u.rate)}</b><span>रेट</span></div>`}
+        ${o?"":`<div class="stat-box"><b>${esc(u.years)} ${t("साल")}</b><span>${t("अनुभव")}</span></div>`}
+        ${o?"":`<div class="stat-box"><b>${esc(u.rate)}</b><span>${t("रेट")}</span></div>`}
       </div>
       
       <div style="text-align:left;margin-top:16px;font-size:14px;color:var(--mut);">
-        <p>📍 <b>पता:</b> ${esc(u.area)}</p>
-        ${o||!u.work.length?"":`<p>🛠️ <b>काम का इलाका:</b> ${u.work.map(esc).join(", ")}</p>`}
-        <p>📱 <b>फ़ोन:</b> +91 ${esc(u.phone)}</p>
+        <p>📍 <b>${t("पता")}:</b> ${esc(u.area)}</p>
+        ${o||!u.work.length?"":`<p>🛠️ <b>${t("काम का इलाका")}:</b> ${u.work.map(esc).join(", ")}</p>`}
+        <p>📱 <b>${t("फ़ोन")}:</b> +91 ${esc(u.phone)}</p>
       </div>
       
-      ${o?"":`<button class="status ${u.free?"free":"busy"}" id="st" style="margin-top:16px;width:100%;padding:12px;border-radius:12px;border:none;font-size:16px;font-weight:700;background:${u.free?'var(--ok)':'var(--bad)'};color:white;">${u.free?"🟢 मैं काम के लिए खाली हूँ":"🔴 मैं अभी व्यस्त हूँ"}</button>`}
+      ${o?"":`<button class="status ${u.free?"free":"busy"}" id="st" style="margin-top:16px;width:100%;padding:12px;border-radius:12px;border:none;font-size:16px;font-weight:700;background:${u.free?'var(--ok)':'var(--bad)'};color:white;">${u.free?t("मैं काम के लिए खाली हूँ"):t("मैं अभी व्यस्त हूँ")}</button>`}
       
-      <button class="btn alt" id="ed" style="margin-top:16px;border-color:var(--blue);color:var(--blue);">✏️ प्रोफ़ाइल एडिट करें</button>
+      <button class="btn alt" id="ed" style="margin-top:16px;border-color:var(--blue);color:var(--blue);">✏️ ${t("प्रोफ़ाइल एडिट करें")}</button>
     </div>`+nav;
 
     $("photoUpload").onchange=(e)=>uploadPhoto(e.target.files[0]);
-    if(!o)$("st").onclick=async()=>{const n=!u.free;try{await updateDoc(doc(db,"users",S.uid),{free:n});u.free=n;S.err=""}catch(e){S.err="स्टेटस बदला नहीं।"}draw()};
+    if(!o)$("st").onclick=async()=>{const n=!u.free;try{await updateDoc(doc(db,"users",S.uid),{free:n});u.free=n;S.err=""}catch(e){S.err="Status not changed."}draw()};
     
     $("ed").onclick=()=>{
         S.isEditing = true;
-        S.f = { n: u.name, y: u.years, r: u.rate, bio: u.bio || "", dist: u.area.split(', ')[2] || "जम्मू", blk: u.area.split(', ')[1] || "", vill: u.area.split(', ')[0] || "", w: u.work || [] };
+        S.f = { 
+            n: u.name, y: u.years, r: u.rate || "", bio: u.bio || "", 
+            dist: u.area.split(', ')[2] || "जम्मू", blk: u.area.split(', ')[1] || "", vill: u.area.split(', ')[0] || "", w: u.work || [] 
+        };
         go("form");
-    };
-    
-    $("lo").onclick=async()=>{
-        if(confirm("Kya aap sach me logout karna chahte hain?")){
-            await signOut(auth);
-            S={step:"login",pos:DEFAULT_LOC,phone:"",pin:"",role:"",err:"",f:{w:[],dist:"जम्मू",blk:"",vill:""},q:{t:"all",km:10},tab:"search",uid:null,user:null,list:null,busy:false,isEditing:false};
-            draw();
-        }
     };
   }
   else {
@@ -386,30 +503,33 @@ if(S.step==="home"){
         return a.d - b.d; 
     });
     
-    A.innerHTML=`<div class="top-header"><h1>कारीगर खोजें</h1></div>
+    A.innerHTML=Header(t("कारीगर खोजें"))+`
     <div class="filter-chips">
-      <button class="chip ${q.t==="all"?"on":""}" data-t="all">सभी</button>
-      ${TR.filter(r=>r[0]!=="owner").map(r=>`<button class="chip ${q.t===r[0]?"on":""}" data-t="${r[0]}">${r[1]} ${r[2]}</button>`).join("")}
+      <button class="chip ${q.t==="all"?"on":""}" data-t="all">${t("सभी")}</button>
+      ${TR.filter(r=>r[0]!=="owner").map(r=>`<button class="chip ${q.t===r[0]?"on":""}" data-t="${r[0]}">${r[1]} ${t(r[2])}</button>`).join("")}
     </div>
     <div style="padding:16px;padding-top:0;">
       <div class="filter-chips" style="padding:8px 0 16px;">
-        <button class="chip ${q.km===5?"on":""}" data-k="5">5 किमी के अंदर</button>
-        <button class="chip ${q.km===10?"on":""}" data-k="10">10 किमी के अंदर</button>
-        <button class="chip ${q.km===20?"on":""}" data-k="20">20 किमी के अंदर</button>
-        <button class="chip" id="rf">🔄 रिफ्रेश</button>
+        <button class="chip ${q.km===5?"on":""}" data-k="5">${t("5 किमी के अंदर")}</button>
+        <button class="chip ${q.km===10?"on":""}" data-k="10">${t("10 किमी के अंदर")}</button>
+        <button class="chip ${q.km===20?"on":""}" data-k="20">${t("20 किमी के अंदर")}</button>
+        <button class="chip" id="rf">🔄 ${t("रिफ्रेश")}</button>
       </div>
-      <p class="mut">${L.length} कारीगर मिले।</p>
+      <p class="mut">${L.length} ${t("कारीगर मिले।")}</p>
     `+
     (L.length?L.map(w=>{
       const isTop = parseInt(w.years) >= 5;
-      const distText = w.d === 9999 ? "दूरी अज्ञात" : `${w.d.toFixed(1)} किमी दूर`;
+      const distText = w.d === 9999 ? t("दूरी अज्ञात") : `${w.d.toFixed(1)} ${t("किमी दूर")}`;
       
-      const actionsHTML = w.phone ? 
-        `<a href="tel:+91${esc(w.phone)}" class="call-btn">📞 कॉल करें</a>
-         <a href="https://wa.me/91${esc(w.phone)}" class="wa-btn">WhatsApp</a>` :
-        `<span class="no-phone">नंबर उपलब्ध नहीं है</span>`;
+      let cleanPhone = String(w.phone || "").replace(/\D/g, "");
+      if (cleanPhone.length > 10) cleanPhone = cleanPhone.slice(-10);
 
-      const roleBadge = T[w.role] ? `<span class="role-badge">${T[w.role][1]} ${T[w.role][2]}</span>` : "";
+      const actionsHTML = (cleanPhone.length === 10) ? 
+        `<a href="tel:+91${cleanPhone}" class="call-btn">📞 ${t("कॉल करें")}</a>
+         <a href="https://wa.me/91${cleanPhone}" class="wa-btn">WhatsApp</a>` :
+        `<span class="no-phone">${t("नंबर उपलब्ध नहीं है")}</span>`;
+
+      const roleBadge = T[w.role] ? `<span class="role-badge">${T[w.role][1]} ${t(T[w.role][2])}</span>` : "";
 
       return `<div class="worker-card">
         <div class="header">
@@ -420,7 +540,7 @@ if(S.step==="home"){
               ${isTop ? `<span class="trust-badge" style="margin:0;font-size:10px;padding:2px 6px;">⭐ TOP</span>` : ""}
             </div>
             <div class="role" style="margin-top:4px;">
-              ${roleBadge} · ${esc(w.years)} साल अनुभव
+              ${roleBadge} · ${esc(w.years)} ${t("साल अनुभव")}
             </div>
           </div>
         </div>
@@ -433,7 +553,7 @@ if(S.step==="home"){
           ${actionsHTML}
         </div>
       </div>`
-    }).join(""):`<div style="text-align:center;padding:40px 20px;color:var(--mut);">इस दायरे में कोई खाली कारीगर नहीं मिला। कृपया दूरी बढ़ाएं।</div>`)+nav;
+    }).join(""):`<div style="text-align:center;padding:40px 20px;color:var(--mut);">${t("इस दायरे में कोई खाली कारीगर नहीं मिला। कृपया दूरी बढ़ाएं।")}</div>`)+nav;
     
     A.querySelectorAll("[data-t].chip").forEach(b=>b.onclick=()=>{q.t=b.dataset.t;draw()});
     A.querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>{q.km=+b.dataset.k;draw()});
@@ -441,8 +561,9 @@ if(S.step==="home"){
   }
   A.querySelectorAll(".nav button").forEach(b=>b.onclick=()=>{S.tab=b.dataset.t;if(S.tab==="search")S.list=null;draw();scrollTo(0,0)})
 }
+updateMenuLang();
 }
 draw();
 </script>
 </body>
-</html>
+</html></html>
