@@ -119,8 +119,24 @@ async function uploadPhoto(file){
   }catch(e){ S.busy=false; S.err="फोटो अपलोड नहीं हुई।"; draw(); }
 }
 
-onAuthStateChanged(auth,u=>{
+  onAuthStateChanged(auth,u=>{
     S.uid=u?u.uid:null;
+    
+    // Naya Background Location Logic
+    if(navigator.geolocation){
+        navigator.geolocation.getCurrentPosition(
+            p => {
+                let loc = {la: p.coords.latitude, lo: p.coords.longitude};
+                S.pos = loc;
+                if(S.uid) {
+                    updateDoc(doc(db, "users", S.uid), {la: S.pos.la, lo: S.pos.lo}).catch(e=>{});
+                }
+            },
+            (err) => { console.log("Location permission denied"); },
+            {enableHighAccuracy: true, timeout: 5000, maximumAge: 0}
+        );
+    }
+
     if(S.uid) loadProfile();
     else draw();
 });
